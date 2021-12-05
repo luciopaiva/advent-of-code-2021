@@ -1,10 +1,35 @@
 
 # Advent of code 2021
 
-Run `npm start` passing the challenge to run:
+## Setup
 
-    npm start -- 02a.ts
+You need `nvm` and `npm` installed. Run:
 
-It will also watch the script, re-running it upon changes.
+    nvm install
+    npm install
 
-It's also easy to run and debug scripts [via WebStorm](https://www.jetbrains.com/help/webstorm/running-and-debugging-typescript.html#ws_ts_run_debug_server_side_ts_node). `npm start` is preferable because it runs faster, but running via the IDE may be desired when debugging.
+And that's it.
+
+## Run
+
+Open two terminals. In the first one run:
+
+    nvm use
+    npm run build
+
+This will start Webpack in watch mode, rebuilding your scripts as you work on them.
+
+In the second terminal;
+
+    nvm use
+    npm start <script>
+
+This will run your script, also in watch mode, re-running it every time the source changes. The parameter `<script>` needs to be changed with the name of the script to run. For example:
+
+    npm start 02b
+
+This npm script will look for `dist/02b.js` and run it.
+
+## Debug
+
+On WebStorm, run the intended script in the `dist` folder, but add your breakpoints to the TypeScript file in the `src` folder. It should work just fine.
