@@ -1,13 +1,8 @@
 
-import {readFileSync, createReadStream} from "fs";
+import {createReadStream} from "fs";
 import * as readline from "readline";
 
 const nonBlankLinePattern = /\S/;
-
-export function oldreadLines(fileName: string, discardBlankLines = true): string[] {
-    const rawLines = readFileSync(fileName, "utf-8").split("\n");
-    return discardBlankLines ? rawLines.filter(line => nonBlankLinePattern.test(line)) : rawLines;
-}
 
 export async function *readLines(fileName: string, discardBlankLines = true): AsyncGenerator<string> {
     const stream = createReadStream(fileName);

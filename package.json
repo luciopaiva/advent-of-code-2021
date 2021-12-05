@@ -3,19 +3,15 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "start": "concurrently --restart-tries 2 --restart-after 1000 -k npm:build \"npm:exec 02a\"",
-    "build": "webpack -w",
-    "exec": "cd dist && nodemon -q",
-    "debug": "cd dist && node "
+    "start": "./build.sh",
+    "latest": "node dist/main.js"
   },
   "keywords": [],
   "author": "Lucio Paiva",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^16.11.11",
-    "concurrently": "^6.4.0",
     "fork-ts-checker-webpack-plugin": "^6.5.0",
-    "nodemon": "^2.0.15",
     "ts-loader": "^9.2.6",
     "typescript": "^4.5.2",
     "webpack": "^5.64.4",

@@ -12,24 +12,18 @@ And that's it.
 
 ## Run
 
-Open two terminals. In the first one run:
+For each challenge being developed, run:
 
-    nvm use
-    npm run build
+    npm start <day>
 
-This will start Webpack in watch mode, rebuilding your scripts as you work on them.
+For example, `npm start 03a`. This will start Webpack in watch mode, rebuilding the script on every change and running it again right after.
 
-In the second terminal;
+If you want to run the challenge independently, make sure `npm start <day>` is still running (so that the compiler kicks in) and run:
 
-    nvm use
-    npm start <script>
+    npm run latest
 
-This will run your script, also in watch mode, re-running it every time the source changes. The parameter `<script>` needs to be changed with the name of the script to run. For example:
-
-    npm start 02b
-
-This npm script will look for `dist/02b.js` and run it.
+Which will run the latest build once and stop.
 
 ## Debug
 
-On WebStorm, run the intended script in the `dist` folder, but add your breakpoints to the TypeScript file in the `src` folder. It should work just fine.
+In WebStorm, run the intended script in the `dist` folder, but add your breakpoints to the TypeScript file in the `src` folder. It should work just fine.
