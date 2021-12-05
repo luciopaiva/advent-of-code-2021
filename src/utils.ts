@@ -22,9 +22,3 @@ export function getNumberFromString(str: string): number {
     }
     throw new Error(`String does not contain number: "${str}".`);
 }
-
-type LinesCallback = (lines: AsyncGenerator<string>) => void;
-
-export async function run(callback: LinesCallback): Promise<void> {
-    console.info("I'm here");
-}
