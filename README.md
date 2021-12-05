@@ -1,6 +1,8 @@
 
 # Advent of code 2021
 
+https://adventofcode.com/2021
+
 ## Setup
 
 You need `nvm` and `npm` installed. Run:
