@@ -22,3 +22,11 @@ export function getNumberFromString(str: string): number {
     }
     throw new Error(`String does not contain number: "${str}".`);
 }
+
+export function *range(from: number, to: number): Generator<number> {
+    const step = Math.sign(to - from);
+    for (let i = from; i !== to; i += step) {
+        yield i;
+    }
+    yield to;
+}

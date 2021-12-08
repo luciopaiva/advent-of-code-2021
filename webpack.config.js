@@ -2,6 +2,7 @@
 const {exec} = require("child_process");
 const path = require("path");
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
+const {clearTimeout} = require("timers");
 
 class RunnerPlugin {
     apply(compiler) {
@@ -10,7 +11,14 @@ class RunnerPlugin {
             const scriptRun = exec("node ./dist/main.js");
             scriptRun.stdout.pipe(process.stdout);
             scriptRun.stderr.pipe(process.stderr);
-            scriptRun.on("exit", () => console.info("=".repeat(80)));
+            const timer = setTimeout(() => {
+                scriptRun.kill("SIGTERM");
+                console.error("Script aborted due to time out.");
+            }, 1000);
+            scriptRun.on("exit", () => {
+                clearTimeout(timer);
+                console.info("=".repeat(80));
+            });
         });
     }
 }
