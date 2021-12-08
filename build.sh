@@ -11,6 +11,7 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
+unset npm_config_prefix
 source $HOME/.nvm/nvm.sh
 nvm install
 
