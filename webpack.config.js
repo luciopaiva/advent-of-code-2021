@@ -15,9 +15,13 @@ class RunnerPlugin {
                 scriptRun.kill("SIGTERM");
                 console.error("Script aborted due to time out.");
             }, 1000);
+            let startTime;
+            scriptRun.on("spawn", () => startTime = process.hrtime.bigint());
             scriptRun.on("exit", () => {
+                const elapsed = process.hrtime.bigint() - startTime;
+                const ms = elapsed / 1_000_000n;
                 clearTimeout(timer);
-                console.info("=".repeat(80));
+                console.info(`Took ${ms} ms ` + "=".repeat(80));
             });
         });
     }
