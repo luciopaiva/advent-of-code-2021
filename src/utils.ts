@@ -30,3 +30,7 @@ export function *range(from: number, to: number): Generator<number> {
     }
     yield to;
 }
+
+export function sum(numbers: number[]): number {
+    return numbers.reduce((sum, n) => sum + n, 0);
+}
