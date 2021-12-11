@@ -1,6 +1,5 @@
 
-import * as fs from "fs";
-import {sum} from "./utils";
+import {readCommaSeparatedNumbersFromFile, sum} from "./utils";
 
 const TOTAL_DAYS = 256;
 const INITIAL_GROWTH_PERIOD = 9;
@@ -16,11 +15,6 @@ class Simulation {
 
     dumpSingleFish() {
         console.info("Growth of a single fish: " + this.schoolSizeInDays.map(size => String(size)).join(", "));
-    }
-
-    readFirstGeneration(fileName: string) {
-        const line = fs.readFileSync(fileName, "utf-8").split("\n")[0];
-        return line.split(",").map(s => parseInt(s));
     }
 
     computeOffspringSingleFish() {
@@ -42,7 +36,7 @@ class Simulation {
     }
 
     run(fileName: string) {
-        const firstGeneration = this.readFirstGeneration(fileName);
+        const firstGeneration = readCommaSeparatedNumbersFromFile(fileName);
 
         const totalFish = sum(firstGeneration.map(age => this.lookUpSchoolSizeByInitialAge(age)));
         console.info(`Final school size for "${fileName}": ${totalFish}`);

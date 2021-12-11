@@ -1,6 +1,7 @@
 
 import {createReadStream} from "fs";
 import * as readline from "readline";
+import * as fs from "fs";
 
 const nonBlankLinePattern = /\S/;
 
@@ -33,4 +34,9 @@ export function *range(from: number, to: number): Generator<number> {
 
 export function sum(numbers: number[]): number {
     return numbers.reduce((sum, n) => sum + n, 0);
+}
+
+export function readCommaSeparatedNumbersFromFile(fileName: string): number[] {
+    const line = fs.readFileSync(fileName, "utf-8").split("\n")[0];
+    return line.split(",").map(s => parseInt(s));
 }
