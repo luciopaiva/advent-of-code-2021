@@ -40,3 +40,10 @@ export function readCommaSeparatedNumbersFromFile(fileName: string): number[] {
     const line = fs.readFileSync(fileName, "utf-8").split("\n")[0];
     return line.split(",").map(s => parseInt(s));
 }
+
+export class Counter<T> extends Map<T, number> {
+    increment(key: T, delta: number = 1) {
+        const count = this.get(key) ?? 0;
+        this.set(key, count + delta);
+    }
+}

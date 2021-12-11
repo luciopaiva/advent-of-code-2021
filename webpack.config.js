@@ -2,13 +2,12 @@
 const {exec} = require("child_process");
 const path = require("path");
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
-const {clearTimeout} = require("timers");
 
 class RunnerPlugin {
     apply(compiler) {
         compiler.hooks.done.tap("RunnerPlugin", () => {
             console.info("=".repeat(80));
-            const scriptRun = exec("node ./dist/main.js");
+            const scriptRun = exec("node dist/main.js --enable-source-maps");
             scriptRun.stdout.pipe(process.stdout);
             scriptRun.stderr.pipe(process.stderr);
             const timer = setTimeout(() => {
@@ -34,8 +33,9 @@ module.exports = {
         filename: "[name].js",
         path: path.resolve(__dirname, "dist"),
         clean: true,
+        sourceMapFilename: "[name].js.map"
     },
-    devtool: "inline-source-map",
+    devtool: "eval-source-map",
     module: {
         rules: [
             {
