@@ -12,8 +12,20 @@ class Solution {
                 break;
             }
         }
+
         if (!this.isCorrupted) {
-            // compute incomplete score
+            this.computeIncompleteScore();
+        }
+    }
+
+    computeIncompleteScore() {
+        for (const c of this.stack.reverse()) {
+            switch (c) {
+                case ")": this.score = this.score * 5 + 1; break;
+                case "]": this.score = this.score * 5 + 2; break;
+                case "}": this.score = this.score * 5 + 3; break;
+                case ">": this.score = this.score * 5 + 4; break;
+            }
         }
     }
 
@@ -65,17 +77,25 @@ class Solution {
 }
 
 async function run(fileName: string) {
-    let corruptionScore = 0;
+    let corruptedScore = 0;
+    let incompleteScores: number[] = [];
 
     for await (const line of readLines(fileName)) {
         const solution = new Solution();
         solution.computeScore(line.trim());
         if (solution.isCorrupted) {
-            corruptionScore += solution.score;
+            corruptedScore += solution.score;
+        } else {
+            incompleteScores.push(solution.score);
         }
     }
 
-    console.info(`[${fileName}] corruption score: ${corruptionScore}`);
+    incompleteScores.sort((a, b) => a - b);
+
+    const incompleteScore = incompleteScores[Math.floor(incompleteScores.length / 2)];
+
+    console.info(`[${fileName}] corrupted score: ${corruptedScore}`);
+    console.info(`[${fileName}] incomplete score: ${incompleteScore}`);
 }
 
 await run("input/10-example.txt");
