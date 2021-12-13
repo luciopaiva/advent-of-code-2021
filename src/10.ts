@@ -3,18 +3,21 @@ import {readLines} from "./utils";
 
 class Solution {
     private stack: string[] = [];
+    public score = 0;
+    public isCorrupted = false;
 
-    computeScore(line: string): number {
+    computeScore(line: string) {
         for (const c of line.trim()) {
-            const score = this.checkCharacter(c);
-            if (score > 0) {
-                return score;
+            if (!this.checkCharacter(c)) {
+                break;
             }
         }
-        return 0;
+        if (!this.isCorrupted) {
+            // compute incomplete score
+        }
     }
 
-    checkCharacter(c: string): number {
+    checkCharacter(c: string): boolean {
         switch (c) {
             case "(":
                 this.stack.push(")");
@@ -30,39 +33,49 @@ class Solution {
                 break;
             case ")":
                 if (this.stack.pop() !== ")") {
-                    return 3;
+                    this.score = 3;
+                    this.isCorrupted = true;
+                    return false;
                 }
                 break;
             case "]":
                 if (this.stack.pop() !== "]") {
-                    return 57;
+                    this.score = 57;
+                    this.isCorrupted = true;
+                    return false;
                 }
                 break;
             case "}":
                 if (this.stack.pop() !== "}") {
-                    return 1197;
+                    this.score = 1197;
+                    this.isCorrupted = true;
+                    return false;
                 }
                 break;
             case ">":
                 if (this.stack.pop() !== ">") {
-                    return 25137;
+                    this.score = 25137;
+                    this.isCorrupted = true;
+                    return false;
                 }
                 break;
         }
-        return 0;
+        return true;
     }
 }
 
 async function run(fileName: string) {
-    let score = 0;
-
+    let corruptionScore = 0;
 
     for await (const line of readLines(fileName)) {
         const solution = new Solution();
-        score += solution.computeScore(line.trim());
+        solution.computeScore(line.trim());
+        if (solution.isCorrupted) {
+            corruptionScore += solution.score;
+        }
     }
 
-    console.info(`[${fileName}] score: ${score}`);
+    console.info(`[${fileName}] corruption score: ${corruptionScore}`);
 }
 
 await run("input/10-example.txt");
