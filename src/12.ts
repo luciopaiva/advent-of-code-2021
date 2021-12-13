@@ -18,21 +18,29 @@ class Node {
         this.neighbors.add(other);
     }
 
-    search(path: Node[] = []): number {
-        if (this.isSmallCave && path.includes(this)) {
+    search(path: Node[], hasExtraVisit: boolean): number {
+        if (path.length > 0 && this.name === "start") {
             return 0;
+        }
+
+        if (this.isSmallCave && path.includes(this)) {
+            if (hasExtraVisit) {
+                hasExtraVisit = false;
+            } else {
+                return 0;
+            }
         }
 
         path.push(this);
 
         if (this.name === "end") {
-            console.info(path.map(n => n.name).join(","));
+            // console.info(path.map(n => n.name).join(","));
             return 1;
         }
 
         let pathCounts = 0;
         for (const neighbor of this.neighbors) {
-            pathCounts += neighbor.search(Array.from(path));
+            pathCounts += neighbor.search(Array.from(path), hasExtraVisit);
         }
 
         return pathCounts;
@@ -50,9 +58,9 @@ class Solution {
         nodeB.connect(nodeA);
     }
 
-    run(): number {
+    run(useExtraVisit: boolean): number {
         const start = this.nodesByName.get("start");
-        return start.search();
+        return start.search([], useExtraVisit);
     }
 }
 
@@ -64,9 +72,8 @@ async function run(fileName: string) {
         solution.offerPair(nodeA, nodeB);
     }
 
-    const numberOfPaths = solution.run();
-
-    console.info(`[${fileName}] number of paths: ${numberOfPaths}`);
+    console.info(`[${fileName}] number of paths: ${solution.run(false)}`);
+    console.info(`[${fileName}] number of paths with extra visit: ${solution.run(true)}`);
 }
 
 await run("input/12-example-1.txt");
