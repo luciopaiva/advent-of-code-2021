@@ -11,7 +11,7 @@ export async function *readLines(fileName: string, discardBlankLines = true): As
 
     for await (const line of lines) {
         if (!discardBlankLines || nonBlankLinePattern.test(line)) {
-            yield line;
+            yield line.trim();
         }
     }
 }
