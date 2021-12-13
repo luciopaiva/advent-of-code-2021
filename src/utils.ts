@@ -47,3 +47,15 @@ export class Counter<T> extends Map<T, number> {
         this.set(key, count + delta);
     }
 }
+
+export class HashMap<K, V> extends Map<K, V> {
+
+    computeIfAbsent(key: K, callback: (k: K) => V): V {
+        let value = this.get(key);
+        if (value === undefined) {
+            value = callback(key);
+            this.set(key, value);
+        }
+        return value;
+    }
+}
