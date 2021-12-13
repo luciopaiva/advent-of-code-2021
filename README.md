@@ -1,6 +1,8 @@
 
 # Advent of code 2021
 
+![](output/day11.gif)
+
 https://adventofcode.com/2021
 
 ## Setup

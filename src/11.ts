@@ -1,5 +1,6 @@
 
 import {readLines} from "./utils";
+import Gif from "./gif";
 
 class Octopus {
     public flashCount = 0;
@@ -14,7 +15,6 @@ class Octopus {
 
     flash() {
         this.flashCount++;
-        this.level = 0;
         this.hasFlashed = true;
     }
 
@@ -27,7 +27,10 @@ class Octopus {
     }
 
     reset() {
-        this.hasFlashed = false;
+        if (this.hasFlashed) {
+            this.level = 0;
+            this.hasFlashed = false;
+        }
     }
 }
 
@@ -50,15 +53,19 @@ class Grid<T> {
 
 class Simulation {
     private grid: Grid<Octopus>;
+    public snapshots: number[][] = [];
 
-    constructor(private width: number, private height: number, private matrix: Octopus[]) {
+    constructor(private width: number, private height: number, private matrix: Octopus[],
+                private wantsSnapshots = false) {
         this.grid = new Grid(width, height, matrix);
+        this.takeSnapshot();
     }
 
     step() {
         for (const octopus of this.grid.all()) {
             octopus.levelUp();
         }
+        this.takeSnapshot();
 
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
@@ -111,9 +118,13 @@ class Simulation {
     getNumberOfFlashes(): number {
         return this.grid.all().map(o => o.flashCount).reduce((sum, c) => sum + c, 0);
     }
+
+    takeSnapshot() {
+        this.wantsSnapshots && this.snapshots.push(this.grid.all().map(o => Math.min(o.level, 10) / 10));
+    }
 }
 
-async function run(fileName: string) {
+async function run(fileName: string, shouldGenerateGif: boolean) {
     const octopuses = [];
     let width = 0;
     let height = 0;
@@ -123,7 +134,7 @@ async function run(fileName: string) {
         octopuses.push(...line.split("").map(s => parseInt(s)).map(l => new Octopus(l)));
     }
 
-    const sim = new Simulation(width, height, octopuses);
+    const sim = new Simulation(width, height, octopuses, shouldGenerateGif);
     for (let i = 1; i <= 10000; i++) {
         sim.step();
         if (i === 100) {
@@ -136,7 +147,19 @@ async function run(fileName: string) {
             }
         }
     }
+
+    console.info(`[${fileName}] Total snapshots: ${sim.snapshots.length}`);
+
+    if (shouldGenerateGif) {
+        console.info(`[${fileName}] Generating animated gif (may take a few seconds)...`);
+        const gif = new Gif(width, height, 5, "day11");
+        for (let i = 0; i < sim.snapshots.length; i++) {
+            gif.addFrame(sim.snapshots[i]);
+        }
+        gif.finish();
+        console.info(`[${fileName}] Done.`);
+    }
 }
 
-await run("input/11-example.txt");
-await run("input/11.txt");
+await run("input/11-example.txt", false);
+await run("input/11.txt", true);
