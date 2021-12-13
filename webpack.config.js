@@ -35,7 +35,7 @@ module.exports = {
         clean: true,
         sourceMapFilename: "[name].js.map"
     },
-    devtool: "eval-source-map",
+    devtool: "inline-source-map",
     module: {
         rules: [
             {
