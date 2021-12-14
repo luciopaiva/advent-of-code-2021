@@ -46,6 +46,13 @@ export class Counter<T> extends Map<T, number> {
         const count = this.get(key) ?? 0;
         this.set(key, count + delta);
     }
+
+    merge(other: Counter<T>): Counter<T> {
+        for (const [key, count] of other.entries()) {
+            this.increment(key, count);
+        }
+        return this;
+    }
 }
 
 export class HashMap<K, V> extends Map<K, V> {
