@@ -59,3 +59,11 @@ export class HashMap<K, V> extends Map<K, V> {
         return value;
     }
 }
+
+export function tryMatch(text: string, regexp: RegExp, callback: (...args) => void): boolean {
+    const m = text.match(regexp);
+    if (m) {
+        callback(...m.slice(1));
+    }
+    return !!m;
+}
