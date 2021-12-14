@@ -26,14 +26,14 @@ class Solution {
         });
     }
 
-    run() {
+    run(steps: number) {
         const frequencies: Counter<string> = new Counter();
         for (const c of this.template) {
             frequencies.increment(c);
         }
 
         for (let i = 0; i < this.template.length - 1; i++) {
-            frequencies.merge(this.grow(this.template.slice(i, i + 2), 10));
+            frequencies.merge(this.grow(this.template.slice(i, i + 2), steps));
         }
 
         const freqs = [...frequencies.entries()];
@@ -47,7 +47,7 @@ class Solution {
         return max - min;
     }
 
-    static async parseAndRun(fileName: string) {
+    static async parseAndRun(fileName: string, steps: number) {
         let template = "";
         const rules = new Map();
 
@@ -61,10 +61,12 @@ class Solution {
         }
 
         const solution = new Solution(template, rules);
-        const result = solution.run();
-        console.info(`[${fileName}] most common - least common = ${result}`);
+        const result = solution.run(steps);
+        console.info(`[${fileName}] most common - least common = ${result} (${steps} steps)`);
     }
 }
 
-await Solution.parseAndRun("input/14-example.txt");
-await Solution.parseAndRun("input/14.txt");
+await Solution.parseAndRun("input/14-example.txt", 10);
+await Solution.parseAndRun("input/14.txt", 10);
+await Solution.parseAndRun("input/14-example.txt", 40);
+await Solution.parseAndRun("input/14.txt", 40);
