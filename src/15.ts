@@ -1,5 +1,6 @@
 
 import * as fs from "fs";
+import * as PImage from "pureimage";
 
 class Solution {
 
@@ -80,12 +81,22 @@ class Solution {
         }
     }
 
-    dumpPath(end: number) {
+    async dumpToImage(end: number, fileName: string) {
+        const canvas = PImage.make(this.side, this.side, undefined);
+
+        for (let i = 0; i < this.risks.length; i++) {
+            const [x, y] = this.coord(i);
+            const value = Math.round(0xff * this.risks[i] / 9);
+            canvas.setPixelRGBA(x, y, 0x000000ff + (value << 8));
+        }
+
         for (let i = end; i !== this.start; i = this.previous[i]) {
             const [x, y] = this.coord(i);
-            console.info(x, y);
+            canvas.setPixelRGBA(x, y, 0xdddd00ff);
         }
-        console.info(...this.coord(this.start));
+        canvas.setPixelRGBA(...this.coord(this.start), 0xdddd00ff);
+
+        await PImage.encodePNGToStream(canvas, fs.createWriteStream(fileName));
     }
 
     static readRisksFile(fileName: string) {
@@ -113,7 +124,7 @@ class Solution {
         return extendedRisks;
     }
 
-    static async run(fileName: string, multiplier = 1) {
+    static async run(fileName: string, multiplier = 1, dumpImage = false) {
         const startTime = process.hrtime.bigint();
         const baseRisks = Solution.readRisksFile(fileName);
         const risks = multiplier > 1 ? Solution.extendCave(baseRisks, multiplier) : baseRisks;
@@ -125,10 +136,13 @@ class Solution {
         const elapsed = (process.hrtime.bigint() - startTime) / 1_000_000n;
         console.info(`[${fileName}] lowest total risk (cave size multiplier: ${multiplier}): ` +
             `${totalRisk} (${elapsed} ms)`);
+        if (dumpImage) {
+            await solution.dumpToImage(end, "output/day15.png");
+        }
     }
 }
 
 await Solution.run("input/15-example.txt");
 await Solution.run("input/15-example.txt", 5);
 await Solution.run("input/15.txt");
-await Solution.run("input/15.txt", 5);
+await Solution.run("input/15.txt", 5, true);
