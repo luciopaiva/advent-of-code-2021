@@ -1,44 +1,75 @@
 
 import * as fs from "fs";
 
-function extendCave(risks: number[], multiplier: number): number[] {
-    const len = risks.length;
-    const side = Math.sqrt(len);
-    const SIDE = side * multiplier;
-    const extendedRisks = Array<number>(len * multiplier ** 2);
-    for (let i = 0; i < len; i++) {
-        const [ox, oy] = [i % side, Math.floor(i / side)];
-        for (let y = 0; y < multiplier; y++) {
-            const ey = oy + y * side;
-            for (let x = 0; x < multiplier; x++) {
-                const ex = ox + x * side;
-                extendedRisks[ey * SIDE + ex] = (risks[i] + y + x - 1) % 9 + 1;
-            }
-        }
+class Solution {
+
+    private readonly side: number;
+
+    private queue: number[];
+    private costs: number[];
+    private previous: number[];
+    private visited: Set<number>;
+    private start: number;
+
+    constructor(private risks: number[]) {
+        this.side = Math.sqrt(this.risks.length);
+        this.reset();
     }
-    return extendedRisks;
-}
 
-async function run(fileName: string, multiplier = 1) {
-    const baseRisks = fs.readFileSync(fileName, "utf-8")
-        .replace(/\D/g, "")
-        .split("")
-        .map(n => parseInt(n));
+    reset() {
+        this.costs = Array<number>(this.risks.length).fill(Number.POSITIVE_INFINITY);
+        this.previous = Array<number>(this.risks.length);
+        this.visited = new Set<number>();
+        this.queue = [];
+    }
 
-    const risks = multiplier > 1 ? extendCave(baseRisks, multiplier) : baseRisks;
+    dijkstra(start: number, end: number) {
+        this.reset();
+        this.start = start;
 
-    const side = Math.sqrt(risks.length);
-    const start = 0;
-    const end = risks.length - 1;
+        this.visited.add(start);
+        this.costs[start] = 0;
+        this.enqueue(start);
 
-    const distances = Array<number>(risks.length).fill(Number.POSITIVE_INFINITY);
-    const previous = Array<number>(risks.length);
-    const visited = new Set<number>([start]);
+        while (this.queue.length > 0) {
+            const v = this.queue.pop();
+            if (v === end) {
+                break;
+            }
+            for (const n of this.neighbors(v)) {
+                if (!this.visited.has(n)) {
+                    const distance = this.costs[v] + this.risks[n];
+                    if (distance < this.costs[n]) {
+                        this.costs[n] = distance;
+                        this.previous[n] = v;
+                        this.enqueue(n);
+                    }
+                }
+            }
+            this.visited.add(v);
+        }
 
-    distances[start] = 0;
-    const queue = [start];
+        return this.costs[end];
+    }
 
-    function dump(matrix: number[]) {
+    *neighbors(i: number): Generator<number> {
+        const [x, y] = this.coord(i);
+        if (y > 0) yield i - this.side;
+        if (x + 1 < this.side) yield i + 1;
+        if (y + 1 < this.side) yield i + this.side;
+        if (x > 0) yield i - 1;
+    }
+
+    enqueue(i: number) {
+        this.queue.push(i);
+        this.queue.sort((a, b) => this.costs[b] - this.costs[a]);
+    }
+
+    coord(i: number): [number, number] {
+        return [i % this.side, Math.floor(i / this.side)];
+    }
+
+    dump(matrix: number[]) {
         const side = Math.sqrt(matrix.length);
         for (let y = 0; y < side; y++) {
             console.info(matrix.slice(y * side, y * side + side)
@@ -49,54 +80,55 @@ async function run(fileName: string, multiplier = 1) {
         }
     }
 
-    function enqueue(i: number) {
-        queue.push(i);
-        queue.sort((a, b) => distances[b] - distances[a]);
-    }
-
-    function coord(i: number): [number, number] {
-        return [i % side, Math.floor(i / side)];
-    }
-
-    function *neighbors(i: number): Generator<number> {
-        const [x, y] = coord(i);
-        if (y > 0) yield i - side;
-        if (x + 1 < side) yield i + 1;
-        if (y + 1 < side) yield i + side;
-        if (x > 0) yield i - 1;
-    }
-
-    while (queue.length > 0) {
-        const v = queue.pop();
-        if (v === end) {
-            break;
+    dumpPath(end: number) {
+        for (let i = end; i !== this.start; i = this.previous[i]) {
+            const [x, y] = this.coord(i);
+            console.info(x, y);
         }
-        for (const n of neighbors(v)) {
-            if (!visited.has(n)) {
-                const distance = distances[v] + risks[n];
-                if (distance < distances[n]) {
-                    distances[n] = distance;
-                    previous[n] = v;
-                    enqueue(n);
+        console.info(...this.coord(this.start));
+    }
+
+    static readRisksFile(fileName: string) {
+        return fs.readFileSync(fileName, "utf-8")
+            .replace(/\D/g, "")
+            .split("")
+            .map(n => parseInt(n));
+    }
+
+    static extendCave(risks: number[], multiplier: number): number[] {
+        const len = risks.length;
+        const side = Math.sqrt(len);
+        const SIDE = side * multiplier;
+        const extendedRisks = Array<number>(len * multiplier ** 2);
+        for (let i = 0; i < len; i++) {
+            const [ox, oy] = [i % side, Math.floor(i / side)];
+            for (let y = 0; y < multiplier; y++) {
+                const ey = oy + y * side;
+                for (let x = 0; x < multiplier; x++) {
+                    const ex = ox + x * side;
+                    extendedRisks[ey * SIDE + ex] = (risks[i] + y + x - 1) % 9 + 1;
                 }
             }
         }
-        visited.add(v);
+        return extendedRisks;
     }
 
-    // dump(distances);
-    //
-    // // dump path
-    // for (let i = end; i !== start; i = previous[i]) {
-    //     const [x, y] = coord(i);
-    //     console.info(x, y);
-    // }
-    // console.info(...coord(start));
+    static async run(fileName: string, multiplier = 1) {
+        const startTime = process.hrtime.bigint();
+        const baseRisks = Solution.readRisksFile(fileName);
+        const risks = multiplier > 1 ? Solution.extendCave(baseRisks, multiplier) : baseRisks;
 
-    console.info(`[${fileName}] lowest total risk (cave size multiplier: ${multiplier}): ${distances[end]}`);
+        const solution = new Solution(risks);
+        const start = 0;
+        const end = risks.length - 1;
+        const totalRisk = solution.dijkstra(start, end);
+        const elapsed = (process.hrtime.bigint() - startTime) / 1_000_000n;
+        console.info(`[${fileName}] lowest total risk (cave size multiplier: ${multiplier}): ` +
+            `${totalRisk} (${elapsed} ms)`);
+    }
 }
 
-// await run("input/15-example.txt");
-// await run("input/15.txt");
-// await run("input/15-example.txt", 5);
-await run("input/15.txt", 5);
+await Solution.run("input/15-example.txt");
+await Solution.run("input/15-example.txt", 5);
+await Solution.run("input/15.txt");
+await Solution.run("input/15.txt", 5);
