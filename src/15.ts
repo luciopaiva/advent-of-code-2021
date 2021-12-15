@@ -99,6 +99,18 @@ class Solution {
         await PImage.encodePNGToStream(canvas, fs.createWriteStream(fileName));
     }
 
+    async dumpVisitedToImage(fileName: string) {
+        const canvas = PImage.make(this.side, this.side, undefined);
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, this.side, this.side);
+
+        for (const i of this.visited) {
+            canvas.setPixelRGBA(...this.coord(i), 0xff0000ff);
+        }
+
+        await PImage.encodePNGToStream(canvas, fs.createWriteStream(fileName));
+    }
+
     static readRisksFile(fileName: string) {
         return fs.readFileSync(fileName, "utf-8")
             .replace(/\D/g, "")
@@ -138,6 +150,7 @@ class Solution {
             `${totalRisk} (${elapsed} ms)`);
         if (dumpImage) {
             await solution.dumpToImage(end, "output/day15.png");
+            await solution.dumpVisitedToImage("output/day15-visited.png");
         }
     }
 }
