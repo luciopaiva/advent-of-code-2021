@@ -1,11 +1,32 @@
 
 import * as fs from "fs";
 
-async function run(fileName: string) {
-    const risks = fs.readFileSync(fileName, "utf-8")
+function extendCave(risks: number[], multiplier: number): number[] {
+    const len = risks.length;
+    const side = Math.sqrt(len);
+    const SIDE = side * multiplier;
+    const extendedRisks = Array<number>(len * multiplier ** 2);
+    for (let i = 0; i < len; i++) {
+        const [ox, oy] = [i % side, Math.floor(i / side)];
+        for (let y = 0; y < multiplier; y++) {
+            const ey = oy + y * side;
+            for (let x = 0; x < multiplier; x++) {
+                const ex = ox + x * side;
+                extendedRisks[ey * SIDE + ex] = (risks[i] + y + x - 1) % 9 + 1;
+            }
+        }
+    }
+    return extendedRisks;
+}
+
+async function run(fileName: string, multiplier = 1) {
+    const baseRisks = fs.readFileSync(fileName, "utf-8")
         .replace(/\D/g, "")
         .split("")
         .map(n => parseInt(n));
+
+    const risks = multiplier > 1 ? extendCave(baseRisks, multiplier) : baseRisks;
+
     const side = Math.sqrt(risks.length);
     const start = 0;
     const end = risks.length - 1;
@@ -18,6 +39,7 @@ async function run(fileName: string) {
     const queue = [start];
 
     function dump(matrix: number[]) {
+        const side = Math.sqrt(matrix.length);
         for (let y = 0; y < side; y++) {
             console.info(matrix.slice(y * side, y * side + side)
                 .map(n => n.toString())
@@ -33,7 +55,7 @@ async function run(fileName: string) {
     }
 
     function coord(i: number): [number, number] {
-        return [i % side, Math.floor(i / side)]
+        return [i % side, Math.floor(i / side)];
     }
 
     function *neighbors(i: number): Generator<number> {
@@ -71,8 +93,10 @@ async function run(fileName: string) {
     // }
     // console.info(...coord(start));
 
-    console.info(`[${fileName}] lowest total risk: ${distances[end]}`);
+    console.info(`[${fileName}] lowest total risk (cave size multiplier: ${multiplier}): ${distances[end]}`);
 }
 
-await run("input/15-example.txt");
-await run("input/15.txt");
+// await run("input/15-example.txt");
+// await run("input/15.txt");
+// await run("input/15-example.txt", 5);
+await run("input/15.txt", 5);
