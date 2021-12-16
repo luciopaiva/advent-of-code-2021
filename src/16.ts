@@ -13,14 +13,14 @@ const OPERATIONS: ((...number) => number)[] = [
 ];
 
 const EXPRESSIONS: ((...string) => string)[] = [
-    (...t) => `add(${t.join(", ")})`,
-    (...t) => `mul(${t.join(", ")})`,
+    (...t) => `(${t.join(" + ")})`,
+    (...t) => `(${t.join(" * ")})`,
     (...t) => `min(${t.join(", ")})`,
     (...t) => `max(${t.join(", ")})`,
     a => `${a}`,
-    (a, b) => `gt(${a}, ${b})`,
-    (a, b) => `lt(${a}, ${b})`,
-    (a, b) => `eq(${a}, ${b})`,
+    (a, b) => `(${a} > ${b})`,
+    (a, b) => `(${a} < ${b})`,
+    (a, b) => `(${a} == ${b})`,
 ];
 
 class PacketDecoder {
