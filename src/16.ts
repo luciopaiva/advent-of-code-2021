@@ -1,23 +1,12 @@
 
 import * as fs from "fs";
 
-const OPERATIONS: ((...number) => number)[] = [
-    (...t) => t.reduce((sum, term) => sum + term, 0),
-    (...t) => t.reduce((product, factor) => product * factor, 1),
-    Math.min,
-    Math.max,
-    a => a,
-    (a, b) => a > b ? 1 : 0,
-    (a, b) => a < b ? 1 : 0,
-    (a, b) => a === b ? 1 : 0,
-];
-
-const EXPRESSIONS: ((...string) => string)[] = [
+const expressionsByType: ((...string) => string)[] = [
     (...t) => `(${t.join(" + ")})`,
     (...t) => `(${t.join(" * ")})`,
-    (...t) => `min(${t.join(", ")})`,
-    (...t) => `max(${t.join(", ")})`,
-    a => `${a}`,
+    (...t) => `Math.min(${t.join(", ")})`,
+    (...t) => `Math.max(${t.join(", ")})`,
+    (a)    => `${a}`,
     (a, b) => `(${a} > ${b})`,
     (a, b) => `(${a} < ${b})`,
     (a, b) => `(${a} == ${b})`,
@@ -25,17 +14,17 @@ const EXPRESSIONS: ((...string) => string)[] = [
 
 class PacketDecoder {
 
-    private p: number = 0;
+    private cursor: number = 0;
     private versionSum = 0;
 
     constructor(private readonly bits: string) {
     }
 
-    read(): [number, string] {
+    read(): string {
         return this.readPacket();
     }
 
-    readPacket(): [number, string] {
+    readPacket(): string {
         const version = this.read3BitValue();
         const type = this.read3BitValue();
         this.versionSum += version;
@@ -44,12 +33,12 @@ class PacketDecoder {
     }
 
     readBits(l: number) {
-        const bits = this.bits.slice(this.p, this.p + l);
-        this.p += l;
+        const bits = this.bits.slice(this.cursor, this.cursor + l);
+        this.cursor += l;
         return bits;
     }
 
-    readPacketType(type: number): [number, string] {
+    readPacketType(type: number): string {
         const lengthType = this.readBits(1);
         if (lengthType === "0") {
             const length = parseInt(this.readBits(15), 2);
@@ -60,33 +49,31 @@ class PacketDecoder {
         }
     }
 
-    *readOperandsByLength(length: number): Generator<[number, string]> {
-        const limit = this.p + length;
-        while (this.p < limit) {
+    *readOperandsByLength(length: number): Generator<string> {
+        const limit = this.cursor + length;
+        while (this.cursor < limit) {
             yield this.readPacket();
         }
     }
 
-    *readOperandsByCount(count: number): Generator<[number, string]> {
+    *readOperandsByCount(count: number): Generator<string> {
         for (let i = 0; i < count; i++) {
             yield this.readPacket();
         }
     }
 
-    readLiteral(): [number, string] {
+    readLiteral(): string {
         let chunk = "", flag;
         do {
             flag = this.readBits(1);
             chunk += this.readBits(4);
         } while (flag === "1");
         const literal = parseInt(chunk, 2);
-        return this.processOperation(4, [literal, literal.toString()]);
+        return this.processOperation(4, literal.toString());
     }
 
-    processOperation(type: number, ...terms: [number, string][]): [number, string] {
-        const values = terms.map(t => t[0]);
-        const expressions = terms.map(t => t[1]);
-        return [OPERATIONS[type](...values), EXPRESSIONS[type](...expressions)];
+    processOperation(type: number, ...terms: string[]): string {
+        return expressionsByType[type](...terms);
     }
 
     read3BitValue() {
@@ -98,10 +85,10 @@ class PacketDecoder {
             .map(X => parseInt(X, 16)).map(n => n.toString(2).padStart(4, "0")).join("");
 
         const decoder = new PacketDecoder(bits);
-        const [result, expression] = decoder.read();
-        console.info(`[${fileName}] version sum (part 1): ${decoder.versionSum}`);
-        console.info(`[${fileName}] result (part 2): ${result}`);
-        console.info(`[${fileName}] expression: ${expression}`)
+        const expression = decoder.read();
+        console.info(`[${fileName}] part 1, version sum: ${decoder.versionSum}`);
+        console.info(`[${fileName}] part 2, expression: ${expression}`);
+        console.info(`[${fileName}] part 2, result: ${eval(expression)}`);
     }
 
     static run(fileName: string) {
