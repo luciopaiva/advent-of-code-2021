@@ -1,6 +1,5 @@
 
 import * as fs from "fs";
-import {sum} from "./utils";
 
 class PacketDecoder {
 
@@ -34,13 +33,13 @@ class PacketDecoder {
     }
 
     readSum() {
-        const result = sum([...this.readOperator()]);
+        const result = [...this.readOperator()].reduce((sum, term) => sum + term, 0);
         console.info("Sum " + result);
         return result;
     }
 
     readProduct() {
-        const result = [...this.readOperator()].reduce((product, term) => product * term, 1);
+        const result = [...this.readOperator()].reduce((product, factor) => product * factor, 1);
         console.info("Product " + result);
         return result;
     }
