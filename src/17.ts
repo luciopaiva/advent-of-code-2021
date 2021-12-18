@@ -21,21 +21,17 @@ async function plot(points: [number, number, number][]) {
     points = points.map(([x,y,i]) => [tx(x), ty(y), i]);
 
     const canvas = PImage.make(width, height, undefined);
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#eeeeeeff";
-    ctx.fillRect(0, 0, width, height);
 
     // x is the initial x velocity
     // y is the initial y velocity
     // i is the step at which the probe hit the target
     for (const [x, y, i] of points) {
         let color = 0;
-        switch (i % 5) {
-            case 0: color = 0x000000ff; break;
-            case 1: color = 0xff0000ff; break;
-            case 2: color = 0x0000ffff; break;
-            case 3: color = 0x00ff00ff; break;
-            case 4: color = 0xffff00ff; break;
+        switch (i % 4) {
+            case 0: color = 0xff0000ff; break;
+            case 1: color = 0x0000ffff; break;
+            case 2: color = 0x00ff00ff; break;
+            case 3: color = 0xffff00ff; break;
         }
         canvas.setPixelRGBA(x, y, color);
     }
