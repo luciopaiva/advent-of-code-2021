@@ -1,5 +1,47 @@
 
 import * as fs from "fs";
+import * as PImage from "pureimage";
+
+/**
+ * This plot shows an interesting pattern formed by the winning starting velocities. The resulting image is a scatter
+ * plot where each pixel corresponds to a starting velocity. The right-bottom rectangle shows the velocities that were
+ * able to hit the target area at the first step, and the rectangles that follow to the right are adding one step each.
+ * A color code is used to help tell apart velocities that arrived at different steps (it was not entirely clear that
+ * this pattern would be seen until I first plotted it).
+ */
+async function plot(points: [number, number, number][]) {
+    const minX = points.map(([x,,]) => x).reduce((min, x) => Math.min(min, x), Number.POSITIVE_INFINITY);
+    const maxX = points.map(([x,,]) => x).reduce((min, x) => Math.max(min, x), Number.NEGATIVE_INFINITY);
+    const minY = points.map(([,y,]) => y).reduce((min, y) => Math.min(min, y), Number.POSITIVE_INFINITY);
+    const maxY = points.map(([,y,]) => y).reduce((min, y) => Math.max(min, y), Number.NEGATIVE_INFINITY);
+    const width = maxX - minX + 30;
+    const height = maxY - minY + 10;
+    const tx = (x) => x;
+    const ty = (y) => (maxY - minY) - (y - minY);
+    points = points.map(([x,y,i]) => [tx(x), ty(y), i]);
+
+    const canvas = PImage.make(width, height, undefined);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#eeeeeeff";
+    ctx.fillRect(0, 0, width, height);
+
+    // x is the initial x velocity
+    // y is the initial y velocity
+    // i is the step at which the probe hit the target
+    for (const [x, y, i] of points) {
+        let color = 0;
+        switch (i % 5) {
+            case 0: color = 0x000000ff; break;
+            case 1: color = 0xff0000ff; break;
+            case 2: color = 0x0000ffff; break;
+            case 3: color = 0x00ff00ff; break;
+            case 4: color = 0xffff00ff; break;
+        }
+        canvas.setPixelRGBA(x, y, color);
+    }
+
+    await PImage.encodePNGToStream(canvas, fs.createWriteStream("output/day17.png"));
+}
 
 class Vector {
     constructor(public x: number, public y: number) {
@@ -29,7 +71,7 @@ function stepsForFinalVelocityZeroAt(x: number) {
     return Math.ceil((-1 + Math.sqrt(1 + 8 * x)) / 2);
 }
 
-function run(fileName: string) {
+async function run(fileName: string, dumpImage = false) {
     const line = fs.readFileSync(fileName, "utf-8");
     console.info(line);
     const m = line.match(/x=(-?\d+)\.\.(-?\d+).*y=(-?\d+)\.\.(-?\d+)/);
@@ -68,28 +110,36 @@ function run(fileName: string) {
     let attempts = 0;
     let totalValidShots = 0;
 
+    const points = [];
+
     for (const v0x of range(minVx, maxVx)) {
         for (const v0y of range(minVy, maxVy)) {
             const v0 = new Vector(v0x, v0y);
             const s = new Vector(0, 0);
             const v = Vector.from(v0);
+            let step = 0;
             while (s.x <= x1 && s.y >= y1) {
                 attempts++;
                 if (s.x >= x0 && s.y <= y0) {
                     console.info(`  - hit at ${s}, initial velocity ${v0}`);
+                    points.push([v0.x, v0.y, step]);
                     totalValidShots++;
                     break;
                 }
                 s.add(v);
                 v.x = Math.max(v.x - 1, 0);
                 v.y--;
+                step++;
             }
         }
     }
 
     console.info("  Total attempts: " + attempts);
     console.info("  Total valid shots: " + totalValidShots);
+    if (dumpImage) {
+        await plot(points);
+    }
 }
 
-run("input/17-example.txt");
-run("input/17.txt");
+await run("input/17-example.txt");
+await run("input/17.txt", true);
