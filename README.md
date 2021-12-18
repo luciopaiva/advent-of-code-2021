@@ -31,3 +31,11 @@ Which will run the latest build once and stop.
 ## Debug
 
 In WebStorm, run the intended script in the `dist` folder, but add your breakpoints to the TypeScript file in the `src` folder. It should work just fine.
+
+## Byproduct art
+
+![](output/day11.gif)
+
+![](output/day17.png)
+
+![](output/day15.png)
