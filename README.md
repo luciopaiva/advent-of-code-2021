@@ -34,8 +34,14 @@ In WebStorm, run the intended script in the `dist` folder, but add your breakpoi
 
 ## Byproduct art
 
+Day 11 octopus ballet:
+
 ![](output/day11.gif)
 
+Day 17 winning shots:
+
 ![](output/day17.png)
+
+Day 15 Dijkstra lightning:
 
 ![](output/day15.png)
