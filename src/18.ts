@@ -16,6 +16,11 @@ class Pair {
     constructor(public left: Element, public right: Element) {
     }
 
+    copy(): Pair {
+        return new Pair(this.left instanceof Pair ? this.left.copy() : this.left,
+            this.right instanceof Pair ? this.right.copy() : this.right);
+    }
+
     magnitude(): number {
         const left = this.left instanceof Pair ? this.left.magnitude() : this.left;
         const right = this.right instanceof Pair ? this.right.magnitude() : this.right;
@@ -118,8 +123,8 @@ class Pair {
         return false;
     }
 
-    static add(left: Element, right: Element) {
-        const pair = new Pair(left, right);
+    static add(left: Pair, right: Pair) {
+        const pair = new Pair(left.copy(), right.copy());
         return pair.reduce();
     }
 
@@ -195,15 +200,46 @@ class Parser {
     }
 }
 
-async function run(fileName: string) {
+async function getPairs(fileName: string): Promise<Pair[]> {
     const pairs: Pair[] = [];
     for await (const line of readLines(fileName)) {
         const pair = Parser.parse(line.replace(/[^\[\]0-9,]/g, ""));
         pairs.push(pair);
     }
+    return pairs;
+}
+
+function part1(fileName: string, pairs: Pair[]) {
     const root = pairs.reduce((l, r) => l ? Pair.add(l, r) : r);
     console.info(`[${fileName}] Reduction: ${root.toString()}`);
-    console.info(`[${fileName}] Magnitude: ${root.magnitude()}`);
+    console.info(`[${fileName}] Magnitude (part 1): ${root.magnitude()}`);
+}
+
+async function part2(fileName: string, pairs: Pair[]) {
+    let largestMagnitude = Number.NEGATIVE_INFINITY;
+    let largestMagnitudePair = "";
+
+    for (const left of pairs) {
+        for (const right of pairs) {
+            if (left !== right) {
+                const pair = Pair.add(left, right);
+                const magnitude = pair.magnitude();
+                if (magnitude > largestMagnitude) {
+                    largestMagnitudePair = `${left} + ${right} = ${pair}`;
+                    largestMagnitude = magnitude;
+                }
+            }
+        }
+    }
+
+    console.info(`[${fileName}] Largest magnitude pair (part 2): ${largestMagnitudePair}`);
+    console.info(`[${fileName}] Largest magnitude between pairs (part 2): ${largestMagnitude}`);
+}
+
+async function run(fileName: string) {
+    const pairs = await getPairs(fileName);
+    await part1(fileName, pairs);
+    await part2(fileName, pairs);
 }
 
 await run("input/18-example.txt");
