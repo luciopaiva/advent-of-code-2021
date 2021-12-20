@@ -74,3 +74,20 @@ export function tryMatch(text: string, regexp: RegExp, callback: (...args) => vo
     }
     return !!m;
 }
+
+export class Vector {
+    constructor(public x: number, public y: number, public z: number) {
+    }
+
+    length(): number {
+        return Math.hypot(this.x, this.y, this.z);
+    }
+
+    static sub(a: Vector, b: Vector): Vector {
+        return new Vector(a.x - b.x, a.y - b.y, a.z - b.z);
+    }
+
+    toString() {
+        return `<${this.x},${this.y},${this.z}>`;
+    }
+}
