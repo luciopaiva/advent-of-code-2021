@@ -1,5 +1,7 @@
 
-import {readLines, sum, Vector} from "./utils";
+import {readLines, Vector} from "./utils";
+
+const EXPECTED_BEACONS = 12;
 
 class Beacon extends Vector {
     private readonly distancesToSiblingBeacons: number[] = [];
@@ -34,7 +36,6 @@ interface ScannerMatch {
     self: Scanner,
     reference: Scanner,
     beaconMatches: BeaconMatch[],
-    score: number,
 }
 
 class Scanner {
@@ -72,40 +73,36 @@ class Scanner {
                 }
             }
 
-            beaconsAndScores.push({
-                myBeacon: beacon,
-                referenceBeacon: bestBeacon,
-                score: bestScore,
-            });
+            if (bestScore >= EXPECTED_BEACONS - 1) {
+                beaconsAndScores.push({
+                    myBeacon: beacon,
+                    referenceBeacon: bestBeacon,
+                    score: bestScore,
+                });
+            }
         }
-        beaconsAndScores.sort((a, b) => b.score - a.score);
-        return beaconsAndScores.filter(m => m.score > 0).slice(0, 12);
+
+        return beaconsAndScores;
     }
 
     findBestMatchingScanner(scanners: Scanner[]): ScannerMatch {
-        let bestScannerScore = Number.NEGATIVE_INFINITY;
-        let bestScanner: Scanner = undefined;
-        let bestBeaconMatches: BeaconMatch[] = undefined;
         for (const other of scanners) {
             if (this !== other) {
                 const beaconMatches = this.compare(other);
-                const score = sum(beaconMatches.map(m => m.score));
-                if (score > bestScannerScore) {
-                    bestScannerScore = score;
-                    bestScanner = other;
-                    bestBeaconMatches = beaconMatches;
+                if (beaconMatches.length >= EXPECTED_BEACONS) {
+                    return {
+                        self: this,
+                        reference: other,
+                        beaconMatches: beaconMatches,
+                    }
                 }
             }
-        }
-        return {
-            self: this,
-            reference: bestScanner,
-            beaconMatches: bestBeaconMatches,  // ToDo here we probably need to keep the best match
-            score: bestScannerScore,
         }
     }
 
     *orientations(): Generator<(Vector) => Vector> {
+        // from http://www.euclideanspace.com/maths/discrete/groups/categorise/finite/cube/index.htm,
+        // section "Generating rotations from i, x and y"
         yield (v: Vector) => v;
         yield (v: Vector) => v.rotateX();
         yield (v: Vector) => v.rotateY();
@@ -133,11 +130,10 @@ class Scanner {
     }
 
     findFixedOrientationAndPosition(match: ScannerMatch): boolean {
-        console.info(`Fixing scanner #${this.index}...`);
         const myBaseBeacon = match.beaconMatches[0].myBeacon;
         const refBaseBeacon = match.beaconMatches[0].referenceBeacon;
-        console.info(`- will use beacon ${refBaseBeacon} from scanner ${match.reference.index} with ` +
-            `a score of ${match.beaconMatches[0].score} to match my beacon ${myBaseBeacon}`);
+        console.info(`- Will use beacon ${refBaseBeacon} from scanner #${match.reference.index} with ` +
+            `a score of ${match.beaconMatches[0].score} to match scanner #${this.index}'s beacon ${myBaseBeacon}`);
 
         for (const transform of this.orientations()) {
             const myTransformedBaseBeacon = transform(Vector.from(myBaseBeacon));
@@ -152,12 +148,13 @@ class Scanner {
             });
 
             if (perfectMatch) {
-                console.info(`Found orientation! Winning translation: ${translation}`);
+                console.info(`- Found orientation! Winning translation: ${translation}`);
                 this.beacons.forEach(beacon => translate(transform(beacon)));
                 return true;
             }
         }
 
+        console.info("- no valid orientations found :(");
         return false;
     }
 
@@ -187,25 +184,24 @@ async function run(fileName: string) {
     scanners.forEach(s => s.computeBeaconDistances());
 
     const normalizedScanners: Scanner[] = [scanners.shift()];
-    let tries = 75;
-    while (scanners.length > 0 && tries-- > 0) {
+
+    while (scanners.length > 0) {
         const scanner = scanners.shift();
+        console.info(`Analyzing scanner #${scanner.index} (${scanners.length} to go)...`);
         const match = scanner.findBestMatchingScanner(normalizedScanners);
 
-        console.info(`Best match for scanner #${scanner.index} is #${match.reference.index} ` +
-            `with score ${match.score} and ${match.beaconMatches.length} beacons with scores ` +
-            `[${match.beaconMatches.map(p => p.score).join(",")}].`);
+        if (match) {
+            console.info(`- Scanner #${match.reference.index} is a match ` +
+                `with beacon scores [${match.beaconMatches.map(p => p.score).join(",")}].`);
 
-        if (match.beaconMatches.length < 12) {
-            console.info("Partial match; let's move to the next one and get back to this one later.");
-            scanners.push(scanner);
-            continue;
-        }
-
-        if (scanner.findFixedOrientationAndPosition(match)) {
-            normalizedScanners.push(scanner);
+            if (scanner.findFixedOrientationAndPosition(match)) {
+                normalizedScanners.push(scanner);
+            } else {
+                scanners.push(scanner);  // move it to the end, let's try others first
+            }
         } else {
-            scanners.push(scanner);  // move it to the end, let's try others first
+            console.info("- No matches; let's move to the next one and get back to this one later.");
+            scanners.push(scanner);
         }
     }
 
@@ -218,6 +214,7 @@ async function run(fileName: string) {
     console.info(prefix + "Total missing scanners: " + scanners.length);
     console.info(prefix + "Total beacons found: " + beacons.size);
     console.info(prefix + `Total elapsed time: ${elapsed} ms`);
+    console.info("");
 }
 
 await run("input/19-example.txt");
