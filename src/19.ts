@@ -30,7 +30,6 @@ interface BeaconMatch {
 }
 
 interface ScannerMatch {
-    self: Scanner,
     reference: Scanner,
     beaconMatches: BeaconMatch[],
 }
@@ -82,13 +81,12 @@ class Scanner {
         return beaconsAndScores;
     }
 
-    findBestMatchingScanner(scanners: Scanner[]): ScannerMatch {
+    findMatchingScanner(scanners: Scanner[]): ScannerMatch {
         for (const other of scanners) {
             if (this !== other) {
                 const beaconMatches = this.compare(other);
                 if (beaconMatches.length >= EXPECTED_BEACONS) {
                     return {
-                        self: this,
                         reference: other,
                         beaconMatches: beaconMatches,
                     }
@@ -126,7 +124,7 @@ class Scanner {
         yield (v: Vector) => v.rotateX().rotateY().rotateY().rotateY().rotateX();
     }
 
-    findFixedOrientationAndPosition(match: ScannerMatch): boolean {
+    findFixedOrientationAndPosition(match: ScannerMatch) {
         const myBaseBeacon = match.beaconMatches[0].myBeacon;
         const refBaseBeacon = match.beaconMatches[0].referenceBeacon;
         console.info(`- Will use beacon ${refBaseBeacon} from scanner #${match.reference.index} with ` +
@@ -147,12 +145,11 @@ class Scanner {
             if (perfectMatch) {
                 console.info(`- Found orientation! Winning translation: ${translation}`);
                 this.beacons.forEach(beacon => translate(transform(beacon)));
-                return true;
+                return;
             }
         }
 
-        console.info("- no valid orientations found :(");
-        return false;
+        throw new Error("No valid orientations found! This was not supposed to happen 🤔");
     }
 
     toString() {
@@ -202,13 +199,14 @@ class Solution {
     }
 
     solve(scanner: Scanner): boolean {
-        const match = scanner.findBestMatchingScanner(this.normalizedScanners);
+        const match = scanner.findMatchingScanner(this.normalizedScanners);
 
         if (match) {
             console.info(`- Scanner #${match.reference.index} is a match ` +
                 `with beacon scores [${match.beaconMatches.map(p => p.score).join(",")}].`);
 
-            return scanner.findFixedOrientationAndPosition(match);
+            scanner.findFixedOrientationAndPosition(match);
+            return true;
         }
 
         console.info("- No matches; let's move to the next one and get back to this one later.");
