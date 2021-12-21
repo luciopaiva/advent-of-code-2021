@@ -6,8 +6,8 @@ class Beacon extends Vector {
     private readonly distancesToSiblingBeaconsSet: Set<number> = new Set();
 
     addDistance(other: Beacon) {
-        // const distance = this.manhattan(other);
-        const distance = Vector.sub(this, other).length();
+        const distance = this.manhattan(other);
+        // const distance = Vector.sub(this, other).length();  // euclidean, also works but runs slower
         this.distancesToSiblingBeacons.push(distance);
         this.distancesToSiblingBeaconsSet.add(distance);
     }
@@ -21,41 +21,6 @@ class Beacon extends Vector {
             }
         }
         return score;
-    }
-
-    debugFindBestMatchingBeacon(scanner: Scanner): [Beacon, number] {
-        const beaconsAndScores: [Beacon, number][] = [];
-        let bestBeacon: Beacon = undefined;
-        let bestScore = Number.NEGATIVE_INFINITY;
-        for (const beacon of scanner.beacons) {
-            const score = this.compare(beacon);
-            beaconsAndScores.push([beacon, score]);
-            if (score > bestScore) {
-                bestScore = score;
-                bestBeacon = beacon;
-            }
-        }
-        beaconsAndScores.sort((a, b) => b[1] - a[1]);
-        if (beaconsAndScores[1][1] > 1) {
-            console.info(`Problematic beacon:`);
-            console.info(`first score: ${beaconsAndScores[0][1]} (${bestScore})`);
-            console.info(`second score: ${beaconsAndScores[1][1]}`);
-            process.exit(1);
-        }
-        return [bestBeacon, bestScore];
-    }
-
-    findBestMatchingBeacon(scanner: Scanner): [Beacon, number] {
-        let bestBeacon: Beacon = undefined;
-        let bestScore = Number.NEGATIVE_INFINITY;
-        for (const beacon of scanner.beacons) {
-            const score = this.compare(beacon);
-            if (score > bestScore) {
-                bestScore = score;
-                bestBeacon = beacon;
-            }
-        }
-        return [bestBeacon, bestScore];
     }
 }
 
@@ -92,22 +57,6 @@ class Scanner {
         }
     }
 
-    oldCompare(otherScanner: Scanner): [number, BeaconMatch[]] {
-        let total = 0;
-        const beaconsAndScores: BeaconMatch[] = [];
-        for (const beacon of this.beacons) {
-            const [otherBeacon, score] = beacon.findBestMatchingBeacon(otherScanner);
-            total += score;
-            beaconsAndScores.push({
-                myBeacon: beacon,
-                referenceBeacon: otherBeacon,
-                score: score,
-            });
-        }
-        beaconsAndScores.sort((a, b) => b.score - a.score);
-        return [total, beaconsAndScores.slice(0, 12)];
-    }
-
     compare(refScanner: Scanner): BeaconMatch[] {
         const beaconsAndScores: BeaconMatch[] = [];
 
@@ -130,7 +79,7 @@ class Scanner {
             });
         }
         beaconsAndScores.sort((a, b) => b.score - a.score);
-        return beaconsAndScores.filter(m => m.score > 0);
+        return beaconsAndScores.filter(m => m.score > 0).slice(0, 12);
     }
 
     findBestMatchingScanner(scanners: Scanner[]): ScannerMatch {
@@ -185,42 +134,30 @@ class Scanner {
 
     findFixedOrientationAndPosition(match: ScannerMatch): boolean {
         console.info(`Fixing scanner #${this.index}...`);
-        const myBeacon = match.beaconMatches[0].myBeacon;
-        const refBeacon = match.beaconMatches[0].referenceBeacon;
-        console.info(`- will use beacon ${refBeacon} from scanner ${match.reference.index} with ` +
-            `a score of ${match.beaconMatches[0].score} to match my beacon ${myBeacon}`);
+        const myBaseBeacon = match.beaconMatches[0].myBeacon;
+        const refBaseBeacon = match.beaconMatches[0].referenceBeacon;
+        console.info(`- will use beacon ${refBaseBeacon} from scanner ${match.reference.index} with ` +
+            `a score of ${match.beaconMatches[0].score} to match my beacon ${myBaseBeacon}`);
 
-        let maxHits = 0;
         for (const transform of this.orientations()) {
-            let hits = 1;
+            const myTransformedBaseBeacon = transform(Vector.from(myBaseBeacon));
+            const refTransformedBaseBeacon = Vector.from(refBaseBeacon);
 
-            const myBaseBeacon = transform(Vector.from(match.beaconMatches[0].myBeacon));
-            const refBaseBeacon = Vector.from(match.beaconMatches[0].referenceBeacon);
-
-            const translation = refBaseBeacon.sub(myBaseBeacon);
-            // if (this.index === 4) {
-            //     console.info(`Trying transformed ${myBaseBeacon} with translation ${translation}`);
-            // }
-
+            const translation = refTransformedBaseBeacon.sub(myTransformedBaseBeacon);
             const translate = (v: Vector) => v.add(translation);
 
-            for (let i = 1; i < match.beaconMatches.length; i++) {
-                const myBeacon = translate(transform(Vector.from(match.beaconMatches[i].myBeacon)));
-                const refBeacon = match.beaconMatches[i].referenceBeacon;
-                hits += refBeacon.equals(myBeacon) ? 1 : 0;
-            }
+            const perfectMatch = !match.beaconMatches.some(bm => {
+                const transformedBeacon = translate(transform(Vector.from(bm.myBeacon)));
+                return !bm.referenceBeacon.equals(transformedBeacon);
+            });
 
-            if (hits === match.beaconMatches.length) {
+            if (perfectMatch) {
                 console.info(`Found orientation! Winning translation: ${translation}`);
                 this.beacons.forEach(beacon => translate(transform(beacon)));
                 return true;
-            } else {
-                // console.info("Orientation miss. Hits: " + hits);
             }
-            maxHits = Math.max(maxHits, hits);
         }
 
-        console.error("Did not match any orientations :( hits: " + maxHits);
         return false;
     }
 
@@ -243,13 +180,14 @@ async function readInput(fileName: string): Promise<Scanner[]> {
 }
 
 async function run(fileName: string) {
+    const startTime = process.hrtime.bigint();
     const scanners = await readInput(fileName);
 
     // quadratic on the number of beacons of each scanner (about 1000 operations per scanner)
     scanners.forEach(s => s.computeBeaconDistances());
 
     const normalizedScanners: Scanner[] = [scanners.shift()];
-    let tries = 20;
+    let tries = 75;
     while (scanners.length > 0 && tries-- > 0) {
         const scanner = scanners.shift();
         const match = scanner.findBestMatchingScanner(normalizedScanners);
@@ -269,17 +207,18 @@ async function run(fileName: string) {
         } else {
             scanners.push(scanner);  // move it to the end, let's try others first
         }
-
-        // console.info("Stopping after first comparison!");
-        // break;
     }
 
     const beacons: Set<string> = new Set();
     normalizedScanners.forEach(scanner => scanner.beacons.map(b => beacons.add(b.toString())));
 
-    console.info("Total normalized scanners: " + normalizedScanners.length);
-    console.info("Total beacons found: " + beacons.size);
+    const elapsed = Math.round(Number((process.hrtime.bigint() - startTime) / 1_000_000n));
+    const prefix = `[${fileName}] `;
+    console.info(prefix + "Total normalized scanners: " + normalizedScanners.length);
+    console.info(prefix + "Total missing scanners: " + scanners.length);
+    console.info(prefix + "Total beacons found: " + beacons.size);
+    console.info(prefix + `Total elapsed time: ${elapsed} ms`);
 }
 
 await run("input/19-example.txt");
-// await run("input/19.txt");
+await run("input/19.txt");
