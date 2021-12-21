@@ -75,16 +75,83 @@ export function tryMatch(text: string, regexp: RegExp, callback: (...args) => vo
     return !!m;
 }
 
+// noinspection JSSuspiciousNameCombination
 export class Vector {
     constructor(public x: number, public y: number, public z: number) {
+    }
+
+    add(other: Vector): this {
+        this.x += other.x;
+        this.y += other.y;
+        this.z += other.z;
+        return this;
+    }
+
+    sub(other: Vector): this {
+        this.x -= other.x;
+        this.y -= other.y;
+        this.z -= other.z;
+        return this;
     }
 
     length(): number {
         return Math.hypot(this.x, this.y, this.z);
     }
 
+    manhattan(other: Vector): number {
+        return Math.abs(this.x - other.x) + Math.abs(this.y - other.y) + Math.abs(this.z - other.z);
+    }
+
+    transform(tx: (vector: Vector) => Vector): Vector {
+        return tx(this);
+    }
+
+    rotateX() {
+        const [y, z] = [this.y, this.z];
+        this.y = z;
+        this.z = -y;
+        return this;
+    }
+
+    rotateY() {
+        const [x, z] = [this.x, this.z];
+        this.x = z;
+        this.z = -x;
+        return this;
+    }
+
+    rotateZ() {
+        const [x, y] = [this.x, this.y];
+        this.x = y;
+        this.y = -x;
+        return this;
+    }
+
+    invertX() {
+        this.x = -this.x;
+        return this;
+    }
+
+    invertY() {
+        this.y = -this.y;
+        return this;
+    }
+
+    invertZ() {
+        this.z = -this.z;
+        return this;
+    }
+
+    equals(other: Vector) {
+        return this.x === other.x && this.y === other.y && this.z === other.z;
+    }
+
     static sub(a: Vector, b: Vector): Vector {
         return new Vector(a.x - b.x, a.y - b.y, a.z - b.z);
+    }
+
+    static from(v: Vector) {
+        return new Vector(v.x, v.y, v.z);
     }
 
     toString() {
