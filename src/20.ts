@@ -1,9 +1,14 @@
+
 import {readLines} from "./utils";
+import Gif from "./gif";
 
 const LIGHT = "#";
 const DARK = ".";
 const BLANK = " ";
 const BLANK_RE = new RegExp(BLANK, "g");
+const MARGIN = 2;
+const ITERATIONS_PART_1 = 2;
+const ITERATIONS_PART_2 = 50;
 
 class Solution {
 
@@ -23,15 +28,13 @@ class Solution {
     }
 
     enhance() {
-        const margin = 2;
-
-        this.enhancedWidth = this.width + 2 * margin;
-        this.enhancedHeight = this.height + 2 * margin;
+        this.enhancedWidth = this.width + 2 * MARGIN;
+        this.enhancedHeight = this.height + 2 * MARGIN;
         this.enhancedImage = Array.from(Array(this.enhancedHeight), () => Array(this.enhancedWidth).fill(BLANK));
 
         for (let x = 0; x < this.enhancedWidth; x++) {
             for (let y = 0; y < this.enhancedHeight; y++) {
-                this.enhancedImage[y][x] = this.getEnhancedPixel(x - margin, y - margin);
+                this.enhancedImage[y][x] = this.getEnhancedPixel(x - MARGIN, y - MARGIN);
             }
         }
 
@@ -80,7 +83,23 @@ class Solution {
         ).join("\n") + "\n";
     }
 
-    static async run(fileName: string) {
+    toBits(width: number): number[] {
+        const defaultPixel = this.defaultPixel;
+        const margin = Math.trunc((width - this.width) / 2);
+        const emptyRow = Array(width).fill(defaultPixel === "1" ? 1 : 0);
+        const topMargin = Array(margin).fill(emptyRow);
+        const bottomMargin = Array(width - this.width - margin).fill(emptyRow);
+        const leftMargin = Array(margin).fill(defaultPixel === "1" ? 1 : 0);
+        const rightMargin = Array(width - this.width - margin).fill(defaultPixel === "1" ? 1 : 0);
+        const image = this.image.map(row => row
+            .map(c => c === BLANK ? defaultPixel : c)
+            .map(c => (c === "1" ? 1 : 0)));
+        const imageWithLateralMargins = image.map(row => leftMargin.concat(row).concat(rightMargin));
+        return topMargin.concat(imageWithLateralMargins).concat(bottomMargin)
+            .reduce((result, row) => result.concat(row), []);
+    }
+
+    static async run(fileName: string, wantsGif: boolean) {
         const solution = new Solution();
         const remap = line => line.replace(/\./g, "0").replace(/#/g, "1").replace(/[^01]/g, "");
 
@@ -92,15 +111,24 @@ class Solution {
             }
         }
 
-        for (let i = 0; i < 50; i++) {
-            solution.enhance();
-            if (i === 1) {
+        const finalWidth = solution.width + ITERATIONS_PART_2 * MARGIN * 2;
+        const finalHeight = solution.height + ITERATIONS_PART_2 * MARGIN * 2;
+        let gif;
+        if (wantsGif) {
+            gif = new Gif(finalWidth, finalHeight, 1, "day20");
+            gif.addFrameNoScale(solution.toBits(finalWidth));
+        }
+        for (let i = 0; i < ITERATIONS_PART_2; i++) {
+            if (i === ITERATIONS_PART_1) {
                 console.info(`[${fileName}] pixels lit (part 1): ${solution.getPixelsLit()}`);
             }
+            solution.enhance();
+            wantsGif && gif.addFrameNoScale(solution.toBits(finalWidth));
         }
         console.info(`[${fileName}] pixels lit (part 2): ${solution.getPixelsLit()}`);
+        wantsGif && gif.finish();
     }
 }
 
-await Solution.run("input/20-example.txt");
-await Solution.run("input/20.txt");
+await Solution.run("input/20-example.txt", true);
+await Solution.run("input/20.txt", false);
