@@ -36,6 +36,7 @@ interface ScannerMatch {
 
 class Scanner {
     public readonly beacons: Beacon[] = [];
+    public readonly position = new Vector(0, 0, 0);
 
     constructor(public readonly index: number) {
     }
@@ -144,6 +145,7 @@ class Scanner {
 
             if (perfectMatch) {
                 console.info(`- Found orientation! Winning translation: ${translation}`);
+                this.position.add(translation);
                 this.beacons.forEach(beacon => translate(transform(beacon)));
                 return;
             }
@@ -174,6 +176,7 @@ class Solution {
 
     public readonly distinctBeacons = new Set<string>();
     public readonly normalizedScanners: Scanner[] = [];
+    public largestDistance = 0;
 
     constructor(private readonly scanners: Scanner[]) {
         // quadratic on the number of beacons of each scanner (about 1000 operations per scanner)
@@ -192,6 +195,18 @@ class Solution {
         }
 
         this.computeDistinctBeacons();
+        this.computeLargestDistanceBetweenScanners();
+    }
+
+    computeLargestDistanceBetweenScanners() {
+        for (let i = 0; i < this.normalizedScanners.length - 1; i++) {
+            const left = this.normalizedScanners[i];
+            for (let j = i + 1; j < this.normalizedScanners.length; j++) {
+                const right = this.normalizedScanners[j];
+                this.largestDistance = Math.max(this.largestDistance,
+                    Vector.from(left.position).manhattan(right.position));
+            }
+        }
     }
 
     computeDistinctBeacons() {
@@ -219,7 +234,8 @@ class Solution {
         const elapsed = Math.round(Number((process.hrtime.bigint() - startTime) / 1_000_000n));
         const prefix = `[${fileName}] `;
         console.info(prefix + "Total normalized scanners: " + solution.normalizedScanners.length);
-        console.info(prefix + "Total distinct beacons found: " + solution.distinctBeacons.size);
+        console.info(prefix + "Total distinct beacons found (part 1): " + solution.distinctBeacons.size);
+        console.info(prefix + "Largest distance between scanners (part 2): " + solution.largestDistance);
         console.info(prefix + `Total elapsed time: ${elapsed} ms`);
         console.info("");
     }
