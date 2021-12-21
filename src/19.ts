@@ -5,24 +5,21 @@ const EXPECTED_BEACONS = 12;
 
 class Beacon extends Vector {
     private readonly distancesToSiblingBeacons: number[] = [];
+    // this set adds redundancy, but improves speed (and we can't just get rid of the array - we still need to know how
+    // many neighbors there are - the set will merge neighbors with equal distances to us and lose information)
     private readonly distancesToSiblingBeaconsSet: Set<number> = new Set();
 
     addDistance(other: Beacon) {
         const distance = this.manhattan(other);
-        // const distance = Vector.sub(this, other).length();  // euclidean, also works but runs slower
+        // must round euclidean to avoid floating point imprecision
+        // const distance = Math.round(Vector.sub(this, other).length());  // euclidean, also works but runs slower
         this.distancesToSiblingBeacons.push(distance);
         this.distancesToSiblingBeaconsSet.add(distance);
     }
 
-    // scales with the number of siblings
     compare(candidate: Beacon): number {
-        let score = 0;
-        for (const d of this.distancesToSiblingBeacons) {
-            if (candidate.distancesToSiblingBeaconsSet.has(d)) {
-                score++;
-            }
-        }
-        return score;
+        // how many distances both beacons have in common?
+        return this.distancesToSiblingBeacons.filter(d => candidate.distancesToSiblingBeaconsSet.has(d)).length;
     }
 }
 
@@ -176,46 +173,59 @@ async function readInput(fileName: string): Promise<Scanner[]> {
     return scanners;
 }
 
-async function run(fileName: string) {
-    const startTime = process.hrtime.bigint();
-    const scanners = await readInput(fileName);
+class Solution {
 
-    // quadratic on the number of beacons of each scanner (about 1000 operations per scanner)
-    scanners.forEach(s => s.computeBeaconDistances());
+    public readonly distinctBeacons = new Set<string>();
+    public readonly normalizedScanners: Scanner[] = [];
 
-    const normalizedScanners: Scanner[] = [scanners.shift()];
+    constructor(private readonly scanners: Scanner[]) {
+        // quadratic on the number of beacons of each scanner (about 1000 operations per scanner)
+        scanners.forEach(s => s.computeBeaconDistances());
 
-    while (scanners.length > 0) {
-        const scanner = scanners.shift();
-        console.info(`Analyzing scanner #${scanner.index} (${scanners.length} to go)...`);
-        const match = scanner.findBestMatchingScanner(normalizedScanners);
+        this.normalizedScanners = [scanners.shift()];  // the first one is our reference
+
+        while (scanners.length > 0) {
+            const scanner = scanners.shift();
+            console.info(`Analyzing scanner #${scanner.index} (${scanners.length} to go)...`);
+            if (this.solve(scanner)) {
+                this.normalizedScanners.push(scanner);
+            } else {
+                scanners.push(scanner);  // move it to the end, let's try others first
+            }
+        }
+
+        this.computeDistinctBeacons();
+    }
+
+    computeDistinctBeacons() {
+        this.normalizedScanners.forEach(scanner => scanner.beacons.map(b => this.distinctBeacons.add(b.toString())));
+    }
+
+    solve(scanner: Scanner): boolean {
+        const match = scanner.findBestMatchingScanner(this.normalizedScanners);
 
         if (match) {
             console.info(`- Scanner #${match.reference.index} is a match ` +
                 `with beacon scores [${match.beaconMatches.map(p => p.score).join(",")}].`);
 
-            if (scanner.findFixedOrientationAndPosition(match)) {
-                normalizedScanners.push(scanner);
-            } else {
-                scanners.push(scanner);  // move it to the end, let's try others first
-            }
-        } else {
-            console.info("- No matches; let's move to the next one and get back to this one later.");
-            scanners.push(scanner);
+            return scanner.findFixedOrientationAndPosition(match);
         }
+
+        console.info("- No matches; let's move to the next one and get back to this one later.");
+        return false;
     }
 
-    const beacons: Set<string> = new Set();
-    normalizedScanners.forEach(scanner => scanner.beacons.map(b => beacons.add(b.toString())));
-
-    const elapsed = Math.round(Number((process.hrtime.bigint() - startTime) / 1_000_000n));
-    const prefix = `[${fileName}] `;
-    console.info(prefix + "Total normalized scanners: " + normalizedScanners.length);
-    console.info(prefix + "Total missing scanners: " + scanners.length);
-    console.info(prefix + "Total beacons found: " + beacons.size);
-    console.info(prefix + `Total elapsed time: ${elapsed} ms`);
-    console.info("");
+    static async run(fileName: string) {
+        const startTime = process.hrtime.bigint();
+        const solution = new Solution(await readInput(fileName));
+        const elapsed = Math.round(Number((process.hrtime.bigint() - startTime) / 1_000_000n));
+        const prefix = `[${fileName}] `;
+        console.info(prefix + "Total normalized scanners: " + solution.normalizedScanners.length);
+        console.info(prefix + "Total distinct beacons found: " + solution.distinctBeacons.size);
+        console.info(prefix + `Total elapsed time: ${elapsed} ms`);
+        console.info("");
+    }
 }
 
-await run("input/19-example.txt");
-await run("input/19.txt");
+await Solution.run("input/19-example.txt");
+await Solution.run("input/19.txt");
