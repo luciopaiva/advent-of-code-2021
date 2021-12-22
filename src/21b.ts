@@ -9,8 +9,8 @@ interface State {
 }
 
 class Cache extends Map<string, State> {
-    public cacheHits = 0;
-    public cacheAccesses = 0;
+    public hits = 0;
+    public accesses = 0;
 
     key(...args) {
         return args.map(arg => arg.toString()).join(".");
@@ -19,10 +19,15 @@ class Cache extends Map<string, State> {
     get(key: string): State {
         const value = super.get(key);
         if (value) {
-            this.cacheHits++;
+            this.hits++;
         }
-        this.cacheAccesses++;
+        this.accesses++;
         return value;
+    }
+
+    stats(): string {
+        const percentage = Math.round(100 * cache.hits / cache.accesses);
+        return `total=${cache.accesses}, hits=${cache.hits} (${percentage}%)`;
     }
 }
 const cache = new Cache();
@@ -75,10 +80,8 @@ function round(turn: boolean, pos1: number, pos2: number, pts1: number, pts2: nu
 }
 
 function run(name: string, pos1: number, pos2: number) {
-    cache.clear();
     const result = round(true, pos1 - 1, pos2 - 1, 0, 0);
-    const perc = Math.round(100 * cache.cacheHits / cache.cacheAccesses);
-    console.info(`[${name}] Cache: total=${cache.cacheAccesses}, hits=${cache.cacheHits} (${perc}%)`);
+    console.info(`[${name}] Cache: ${cache.stats()}`);
     const max = Math.max(result.wins1, result.wins2);
     console.info(`[${name}] p1=${result.wins1} x p2=${result.wins2} -> ${max}`);
 }
