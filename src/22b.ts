@@ -1,6 +1,64 @@
 
 import {readLines} from "./utils";
 
+/*
+Counting cubes worked for the first part, but it doesn't for the second part since were talking about a huge volume of
+~200000^3 cubes. Even if we used a single bit for every cube, it would still be 200kb cubed (more than 900 TB!).
+Whatever the solution is, it has to scale with the number of cuboids (which is in the order of hundreds), not cubes.
+
+When turning on a cuboid, we just need to keep its coordinates and then calculate its volume to find out how many cubes
+are turned on in it. The problem is when cuboids intersect.
+
+When two cuboids intersect, just saving both cuboids won't do because we'd be counting their intersection twice. To fix
+that, we create a new cuboid which is the intersection of the two, and assign a negative sign to it counts negatively
+when calculating the total amount of cubes turned on.
+
+When a third cube is added, we have to test it against the first two and intersect them the same way as before. However,
+if all three intersect together, the volume being shared by all 3 requires further attention. By adding A, B and C, then
+discounting A ∩ B, A ∩ C, and B ∩ C. Notice, however, that by doing this we are removing the intersection A ∩ B ∩ C
+3 times instead of just 2, so we end up with a whole there. To fic this, we need to sum A ∩ B ∩ C in the end. Notice
+that the sign keeps changing for every new level of intersection, so we just need to keep track of it as we go.
+
+This is an example of how the algorithm should work:
+
+- add A: A
+- add B: + B - A ∩ B
+- add C: + C - A ∩ C - B ∩ C + A ∩ B ∩ C
+
+When we add C, notice that we can make use of the precalculated intersections. If we have:
+
+    [A, B, -A ∩ B]
+
+Adding C is just a matter of traversing the existing list and intersecting every existing cuboid with C:
+
+    A -> -A ∩ C
+    B -> -B ∩ C
+    -A ∩ B -> A ∩ B ∩ C
+
+And, of course, add C as well.
+
+Note that this could quickly grow to a huge amount of cuboids:
+
+    A
+    A + B - A ∩ B
+    A + B - A ∩ B + C - A ∩ C - B ∩ C + A ∩ B ∩ C
+
+The progression of cuboids is 1, 3, 7, 15, and so on. If we have n cuboids in the input file, that could potentially
+turn into 2^n - 1 cuboids. Since we have 420 lines in the input, that'd grow to 2.7E+126 cuboids! Thankfully, cuboids
+intersect with very few other cuboids, so the vast majority of possible intersections that would turn into new cuboids
+are actually empty and do not convert into a new element in the list.
+
+Finally, there are the subtracting rules in the input file. If we had A + B and were to subtract C, this is what we
+would get:
+
+    A + B - A ∩ B - A ∩ C - B ∩ C + A ∩ B ∩ C
+
+We need to subtract C from A, C from B, but add back the part that was taken twice from A ∩ B. Notice that that's
+exactly what we'd do if we were adding C, but with the obvious exception that C is not being added.
+
+Check Reactor.add() to see the algorithm in action.
+ */
+
 class Cuboid {
 
     public readonly size: number;
