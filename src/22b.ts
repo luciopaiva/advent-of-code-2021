@@ -60,7 +60,7 @@ class Reactor {
     }
 
     largestIntersection(): number {
-        return Math.max(...this.cuboids.map(c => c.label.split("").filter(c => c === "∩").length));
+        return Math.max(...this.cuboids.map(c => c.label.split("").filter(c => c === "∩").length + 1));
     }
 }
 
