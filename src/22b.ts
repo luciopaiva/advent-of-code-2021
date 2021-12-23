@@ -31,11 +31,6 @@ class Cuboid {
     count(): number {
         return this.sign ? this.size : -this.size;
     }
-
-    toString(): string {
-        const op = this.sign ? "ADD" : "SUB";
-        return `${op} x=${this.x0}..${this.x1},y=${this.y0}..${this.y1},z=${this.z0}..${this.z1}`;
-    }
 }
 
 class Reactor {
@@ -63,24 +58,29 @@ class Reactor {
         terms.push(...this.cuboids.slice(1).map(c => `${c.sign ? "+" : "-"} ${c.label}`));
         return terms.join(" ");
     }
+
+    largestIntersection(): number {
+        return Math.max(...this.cuboids.map(c => c.label.split("").filter(c => c === "∩").length));
+    }
 }
 
-async function run(fileName: string) {
+async function run(fileName: string, dump = false) {
     const reactor = new Reactor();
     let id = 1;
     const range = "(-?[\\d]+)\\.\\.(-?[\\d]+)";
     const re = new RegExp(`(on|off).x=${range}.y=${range}.z=${range}`);
+
     for await (const line of readLines(fileName)) {
         const m = line.match(re);
         const [a, b, c, d, e, f] = m.slice(2).map(n => Number(n));
         reactor.add(new Cuboid(`C${id++}`, a, b, c, d, e, f, m[1] === "on"));
     }
 
-    console.info(reactor.toString());
+    dump && console.info(`[${fileName}] ${reactor}`);
     console.info(`[${fileName}] resulting cuboids: ${reactor.cuboids.length}`);
+    console.info(`[${fileName}] largest intersection: ${reactor.largestIntersection()}`);
     console.info(`[${fileName}] cubes turned on: ${reactor.size}`);
 }
 
-await run("input/22-example.txt");
-// await run("input/22.txt");
-
+await run("input/22-example.txt", true);
+await run("input/22.txt");
