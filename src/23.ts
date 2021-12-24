@@ -102,7 +102,7 @@ class Game {
     private bestOrganizationStateSoFar: State = undefined;
     private readonly finalOrganizationScore;
 
-    constructor(private readonly map: State, private readonly start: State, private readonly end: State) {
+    constructor(private readonly map: State, private readonly start: State) {
         this.finalOrganizationScore = [...this.map.rooms()].length;
     }
 
@@ -291,11 +291,15 @@ class Game {
 }
 
 function run(fileName: string) {
-    const [map, start, end] = fs.readFileSync(fileName, "utf-8").split("\n\n")
+    const startTime = process.hrtime.bigint();
+    const [map, start] = fs.readFileSync(fileName, "utf-8").split("\n\n")
         .map(m => m.split("\n"));
 
-    const game = new Game(new State(map), new State(start), new State(end));
+    const game = new Game(new State(map), new State(start));
+
     console.info(`[${fileName}] Least energy required: ${game.run()}`)
+    const elapsed = (process.hrtime.bigint() - startTime) / 1_000_000n;
+    console.info(`[${fileName}] Took ${elapsed} ms`)
 }
 
 run("input/23.txt");
