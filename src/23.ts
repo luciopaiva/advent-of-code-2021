@@ -94,12 +94,14 @@ class State {
 }
 
 class Game {
+    private readonly roomPositions: [Pod, string][] = [];
     private bestOrganizationScoreSoFar = Number.NEGATIVE_INFINITY;
     private bestOrganizationStateSoFar: State = undefined;
     private readonly finalOrganizationScore;
 
     constructor(private readonly map: State, private readonly start: State) {
         this.finalOrganizationScore = [...this.map.rooms()].length;
+        this.cacheRoomPositions();
     }
 
     /**
@@ -200,7 +202,6 @@ class Game {
     move(pod: Pod, destination: Pod, oldState: State) {
         const newState = State.from(oldState, oldState.score + destination.cost);
         newState.set(destination, pod.label);
-        // ToDo if destination is final position, mark this pod as settled
         newState.set(pod, SPACE);
         return newState;
     }
@@ -249,8 +250,8 @@ class Game {
 
     checkBest(state: State) {
         let score = 0;
-        for (const room of this.map.rooms()) {
-            if (state.get(room) === room.label.toUpperCase()) {
+        for (const [room, type] of this.roomPositions) {
+            if (state.get(room) === type) {
                 score++;
             }
         }
@@ -260,6 +261,12 @@ class Game {
             console.info(state.toString());
         }
         return score === this.finalOrganizationScore;
+    }
+
+    cacheRoomPositions() {
+        for (const room of this.map.rooms()) {
+            this.roomPositions.push([room, room.label.toUpperCase()]);
+        }
     }
 
     dumpStatePair(left: State, right: State) {
