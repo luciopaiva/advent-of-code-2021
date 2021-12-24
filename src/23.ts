@@ -280,7 +280,7 @@ class Game {
         steps.reverse();
         for (let i = 0; i < steps.length; i++) {
             const step = steps[i];
-            console.info(`Step ${i} #########`);
+            console.info(`Step ${i} ---- score: ${step.score} ------`);
             console.info(step.toString());
         }
     }
