@@ -88,10 +88,6 @@ class State {
         return this.strRep;
     }
 
-    equals(other: State): boolean {
-        return this.strRep === other.strRep;
-    }
-
     static from(state: State, score = 0) {
         return new State([...state.map], score, state);
     }
