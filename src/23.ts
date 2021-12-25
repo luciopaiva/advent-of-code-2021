@@ -223,17 +223,21 @@ class Game {
             opened.delete(state.toString());
             visited.add(state.toString());
 
+            let mustRefreshQueue = false;
             for (const next of this.neighbors(state)) {
                 if (!visited.has(next.toString())) {
                     const existing = opened.get(next.toString());
                     if (!existing || next.score < existing.score) {
                         opened.set(next.toString(), next);
                         queue.push(next);
+                        mustRefreshQueue = true;
                     }
                 }
             }
 
-            queue.sort((a, b) => b.score - a.score);
+            if (mustRefreshQueue) {
+                queue.sort((a, b) => b.score - a.score);
+            }
         }
 
         if (end) {
