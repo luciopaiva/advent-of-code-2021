@@ -42,6 +42,7 @@ class Pod extends Point {
 
 class State {
     private strRep: string;
+    public organizationScore = 0;
 
     constructor(private readonly map: string[],
                 public readonly score: number = 0,
@@ -228,6 +229,7 @@ class Game {
                 if (!visited.has(next.toString())) {
                     const existing = opened.get(next.toString());
                     if (!existing || next.score < existing.score) {
+                        this.computeOrganizationScore(next);
                         opened.set(next.toString(), next);
                         queue.push(next);
                         mustRefreshQueue = true;
@@ -236,7 +238,12 @@ class Game {
             }
 
             if (mustRefreshQueue) {
-                queue.sort((a, b) => b.score - a.score);
+                queue.sort((a, b) => {
+                    // return b.score - a.score;
+                    // smallest scores have precedence, but if they match, let's prefer the better organized
+                    return b.score === a.score ? a.organizationScore - b.organizationScore : b.score - a.score;
+
+                });
             }
         }
 
@@ -250,18 +257,21 @@ class Game {
     }
 
     checkBest(state: State) {
-        let score = 0;
-        for (const [room, type] of this.roomPositions) {
-            if (state.get(room) === type) {
-                score++;
-            }
-        }
-        if (score > this.bestOrganizationScoreSoFar) {
-            this.bestOrganizationScoreSoFar = score;
+        if (state.organizationScore > this.bestOrganizationScoreSoFar) {
+            this.bestOrganizationScoreSoFar = state.organizationScore;
             this.bestOrganizationStateSoFar = state;
             console.info(state.toString());
         }
-        return score === this.finalOrganizationScore;
+        return state.organizationScore === this.finalOrganizationScore;
+    }
+
+    computeOrganizationScore(state: State) {
+        state.organizationScore = 0;
+        for (const [room, type] of this.roomPositions) {
+            if (state.get(room) === type) {
+                state.organizationScore++;
+            }
+        }
     }
 
     cacheRoomPositions() {
