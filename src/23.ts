@@ -1,6 +1,20 @@
 
 import * as fs from "fs";
 
+/*
+My first implementation used Dijkstra. Starting with the initial state, the algorithm computed every possible movement
+from it; these were the "neighbors" of the initial state. Then, for each neighbor, its score is computed and used to
+sort them to figure out which state to open visit next.
+
+This was initially taking more than 73 minutes to run (part 1) because it was sorting the queue on every visit. I did a
+small optimization to only sort if something was actually added to the queue during each visit, and another one to sort
+states that were a tie based on their organization scores (i.e., how many amphipods were inside their destination
+rooms), so that more organized states were visited first. These two optimizations dropped the running time to 51 min.
+
+Finally, I decided to go with A*, using the sum of the Manhattan distances of every amphipod not in its final room as
+heuristic. This dropped the running time to 2 min. That was when I finally got to try part 2, which also run in 2 min.
+ */
+
 const WALL = "#";
 const ROOMS = "abcd".split("");
 const MANEUVER_SPOT = "x";
@@ -15,6 +29,10 @@ class Point {
 
     hash(): number {
         return this.x << 16 | this.y;
+    }
+
+    manhattan(other: Point): number {
+        return Math.abs(other.x - this.x) + Math.abs(other.y - this.y);
     }
 }
 
@@ -38,11 +56,17 @@ class Pod extends Point {
     down(): Pod {
         return new Pod(this.label, this.x, this.y + 1, this.cost + COST_BY_TYPE[this.label]);
     }
+
+    manhattan(other: Point): number {
+        return COST_BY_TYPE[this.label] * super.manhattan(other);
+    }
 }
 
 class State {
     private strRep: string;
     public organizationScore = 0;
+    public heuristicScore = 0;
+    public totalScore = 0;
 
     constructor(private readonly map: string[],
                 public readonly score: number = 0,
@@ -96,6 +120,7 @@ class State {
 
 class Game {
     private readonly roomPositions: [Pod, string][] = [];
+    private readonly roomEntryPoints: Map<string, Pod> = new Map();
     private bestOrganizationScoreSoFar = Number.NEGATIVE_INFINITY;
     private bestOrganizationStateSoFar: State = undefined;
     private readonly finalOrganizationScore;
@@ -103,6 +128,7 @@ class Game {
     constructor(private readonly map: State, private readonly start: State) {
         this.finalOrganizationScore = [...this.map.rooms()].length;
         this.cacheRoomPositions();
+        this.cacheRoomEntryPoints();
     }
 
     /**
@@ -138,7 +164,7 @@ class Game {
 
     // an amphipod is settled iff all positions below it that are part of its room are occupied only by its siblings
     isPodSettled(pod: Pod, state: State): boolean {
-        if (!this.isValidRoom(pod.label, this.map.get(pod))) {
+        if (!this.isPodInRoom(pod)) {
             return false;
         }
         for (let pos = pod; state.get(pos) !== WALL; pos = pos.down()) {
@@ -147,6 +173,10 @@ class Game {
             }
         }
         return true;
+    }
+
+    isPodInRoom(pod: Pod): boolean {
+        return this.isValidRoom(pod.label, this.map.get(pod));
     }
 
     isPodAtValidDestination(pod: Pod, candidateDestination: Pod, state: State): boolean {
@@ -230,6 +260,7 @@ class Game {
                     const existing = opened.get(next.toString());
                     if (!existing || next.score < existing.score) {
                         this.computeOrganizationScore(next);
+                        this.computeHeuristicScore(next);
                         opened.set(next.toString(), next);
                         queue.push(next);
                         mustRefreshQueue = true;
@@ -238,12 +269,7 @@ class Game {
             }
 
             if (mustRefreshQueue) {
-                queue.sort((a, b) => {
-                    // return b.score - a.score;
-                    // smallest scores have precedence, but if they match, let's prefer the better organized
-                    return b.score === a.score ? a.organizationScore - b.organizationScore : b.score - a.score;
-
-                });
+                queue.sort((a, b) => b.totalScore - a.totalScore);
             }
         }
 
@@ -274,9 +300,35 @@ class Game {
         }
     }
 
+    /**
+     * The heuristic is basically the Manhattan distance of every pod to its respective room's entry point. The entry
+     * point is used just to simplify the computation, and it works fine because it will never overestimate. Pods inside
+     * its rooms doesn't add any costs.
+     */
+    computeHeuristicScore(state: State) {
+        state.heuristicScore = 0;
+        for (const pod of state.pods()) {
+            if (!this.isPodInRoom(pod)) {
+                const roomType = pod.label.toLowerCase();
+                const entry = this.roomEntryPoints.get(roomType);
+                state.heuristicScore += pod.manhattan(entry);
+            }
+        }
+        state.totalScore = state.score + state.heuristicScore;
+    }
+
     cacheRoomPositions() {
         for (const room of this.map.rooms()) {
             this.roomPositions.push([room, room.label.toUpperCase()]);
+        }
+    }
+
+    cacheRoomEntryPoints() {
+        for (const room of this.map.rooms()) {
+            // assumes entry points are always the first room spots found
+            if (!this.roomEntryPoints.has(room.label)) {
+                this.roomEntryPoints.set(room.label, room);
+            }
         }
     }
 
@@ -316,4 +368,8 @@ function run(fileName: string) {
     console.info(`[${fileName}] Took ${elapsed} ms`)
 }
 
+/*
+   Expect this to take some time. Both part 1 and part 2 take about 2 min to run each.
+ */
 run("input/23.txt");
+run("input/23-part2.txt");
