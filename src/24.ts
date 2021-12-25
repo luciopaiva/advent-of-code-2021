@@ -11,8 +11,16 @@ import {readLines} from "./utils";
    speed: 1.389M/s, progress: 0.00051%, ETA: 190.6 days
    speed: 1.408M/s, progress: 0.00052%, ETA: 188.1 days
 
-   Proving what I suspected from the beginning: this challenge is not simply about running the input ALU code,
-   otherwise the result would need to be one of the first combinations for this to work.
+   And this is only because I improved the way I was generating the models. I was initially generating big ints and then
+   converting them to string, checking if there was any 0's and splitting them and parseInt()'ing each character
+   otherwise. This was the speed I was getting:
+
+   speed: 0.571M/s, progress: 0.00000%, ETA: 463.8 days
+   speed: 0.592M/s, progress: 0.00001%, ETA: 447.3 days
+   speed: 0.633M/s, progress: 0.00001%, ETA: 418.3 days
+
+   Anyway, this proves what I suspected from the beginning: this challenge is not simply about running the input
+   ALU code, otherwise the result would need to be one of the first combinations for this to work.
  */
 
 function replace(line: string, regexp: RegExp, callback): string {
@@ -27,7 +35,7 @@ class Stats {
     public total = 0;
     private nextTimeShouldReport = time() + 1000;
     private expected = 9 ** 14;
-    increment() {
+    increment(): boolean {
         this.round++;
         this.total++;
         const now = time();
@@ -40,7 +48,9 @@ class Stats {
             `ETA: ${days.toFixed(1)} days`);
             this.round = 0;
             this.nextTimeShouldReport = now + 1000;
+            return true;
         }
+        return false;
     }
 }
 
@@ -55,12 +65,6 @@ class Solution {
         [/div (.) (\S+)/, (a, b) => `${a} = Math.trunc(${a} / ${b})`],
         [/mod (.) (\S+)/, (a, b) => `${a} %= ${b}`],
         [/eql (.) (\S+)/, (a, b) => `${a} = ${a} === ${b} ? 1 : 0`],
-        // [/inp (.)/, a => `${a} = d${this.index++}; console.info("inp " + ${a});`],
-        // [/add (.) (\S+)/, (a, b) => `${a} += ${b}; console.info("add " + ${[a, b]});`],
-        // [/mul (.) (\S+)/, (a, b) => `${a} *= ${b}; console.info("mul " + ${[a, b]});`],
-        // [/div (.) (\S+)/, (a, b) => `${a} = Math.trunc(${a} / ${b}); console.info("div " + ${[a, b]});`],
-        // [/mod (.) (\S+)/, (a, b) => `${a} %= ${b}; console.info("mod " + ${[a, b]});`],
-        // [/eql (.) (\S+)/, (a, b) => `${a} = ${a} === ${b} ? 1 : 0; console.info("eql " + ${[a, b]});`],
     ];
 
     parse(line: string) {
@@ -102,23 +106,14 @@ class Solution {
         }
     }
 
-    *generateModels1(): Generator<number[]> {
-        for (let i = 99_999_999_999_999n;; i--) {
-            const model = i.toString();
-            if (model.includes("0")) {
-                continue;
-            }
-            yield model.split("").map(d => parseInt(d));
-        }
-    }
-
     largestValidModel(): string {
         const stats = new Stats();
         for (const modelDigits of this.generateModels()) {
             const result = this.validateModel(...modelDigits);
             const model = modelDigits.join("");
-            // console.info(model, result);
-            stats.increment();
+            if (stats.increment()) {
+                console.info(`Latest attempt: model=${model}, result=${result}`);
+            }
             if (result === 0) {
                 return model;
             }
