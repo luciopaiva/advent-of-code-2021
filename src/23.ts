@@ -85,7 +85,7 @@ class State {
     }
 
     toString(): string {
-        return this.strRep;
+        return `${this.strRep.trimEnd()}    score: ${this.score}\n`;
     }
 
     static from(state: State, score = 0) {
@@ -209,7 +209,7 @@ class Game {
     run(): number {
         const queue: State[] = [this.start];
         const visited = new Set<string>();
-        const opened = new Set<string>();
+        const opened = new Map<string, State>();
 
         let end: State;
         while (queue.length > 0) {
@@ -220,19 +220,16 @@ class Game {
                 break;
             }
 
-            // if (state.equals(this.end)) {
-            //     end = this.end;
-            //     break;
-            // }
-
             opened.delete(state.toString());
             visited.add(state.toString());
 
             for (const next of this.neighbors(state)) {
-                if (!visited.has(next.toString()) && !opened.has(next.toString())) {
-                    // this.dumpStatePair(state, next);
-                    queue.push(next);
-                    opened.add(next.toString());
+                if (!visited.has(next.toString())) {
+                    const existing = opened.get(next.toString());
+                    if (!existing || next.score < existing.score) {
+                        opened.set(next.toString(), next);
+                        queue.push(next);
+                    }
                 }
             }
 
