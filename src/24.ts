@@ -1,133 +1,145 @@
 
-import {readLines} from "./utils";
-
 /*
-   First approach: try every model starting from 99999999999999, run the ALU code and stop when the first returns
-   z == 0. To run the ALU code, I translated the input instructions into actual JavaScript code and `eval()`'ed it.
+   My initial approach was to write an interpreter for the ALU instructions, but it would take forever to try all
+   combinations. I then decided to actually read the code and try to make sense of it.
 
-   This is what I get when I run the program:
+   The code is composed of 14 blocks like this:
 
-   speed: 1.409M/s, progress: 0.00051%, ETA: 188.0 days
-   speed: 1.389M/s, progress: 0.00051%, ETA: 190.6 days
-   speed: 1.408M/s, progress: 0.00052%, ETA: 188.1 days
+    inp w
+    mul x 0
+    add x z
+    mod x 26
+    div z 1
+    add x 15
+    eql x w
+    eql x 0
+    mul y 0
+    add y 25
+    mul y x
+    add y 1
+    mul z y
+    mul y 0
+    add y w
+    add y 15
+    mul y x
+    add z y
 
-   And this is only because I improved the way I was generating the models. I was initially generating big ints and then
-   converting them to string, checking if there was any 0's and splitting them and parseInt()'ing each character
-   otherwise. This was the speed I was getting:
+   Reconstructing the code gives this expression:
 
-   speed: 0.571M/s, progress: 0.00000%, ETA: 463.8 days
-   speed: 0.592M/s, progress: 0.00001%, ETA: 447.3 days
-   speed: 0.633M/s, progress: 0.00001%, ETA: 418.3 days
+    z = (z // 1 * (25 * ((((x % 26) + 15) === w ? 1 : 0) === 0 ? 1 : 0) + 1)) + (w + 15) * ((((x % 26) + 15) === w ? 1 : 0) === 0 ? 1 : 0)
 
-   Anyway, this proves what I suspected from the beginning: this challenge is not simply about running the input
-   ALU code, otherwise the result would need to be one of the first combinations for this to work.
+   Which becomes easier to read if we extract a variable:
+
+    x = ((((z % 26) + 15) === w ? 1 : 0) === 0 ? 1 : 0)
+    z = (z // 1 * (25 * x + 1)) + (w + 15) * x
+
+   All other blocks follow the same pattern, but 3 values vary from block to block: the one being added in x (15), the
+   one being added to w (15) and the value that divides z (1).
+
+   At each block, the only value carried from the block that precedes it is z. Register w gets overridden by the new
+   input and registers x and y are always cleared.
+
+   Since we want z to be zero at the end of the last block, we need to somehow compensate for the ever-increasing values
+   of z that can be seen as you feed digits to the input.
+
+   By analyzing the formula, the only way z can pass to the next block as zero is if the preceding block provides a z
+   value which is less than the divisor used in the current block. That value that divides z is either 1 or 26. A
+   division by 1 does nothing, but a division by 26 can clear z if z is less than 26 - and that's what we want.
+
+   If we analyze all divisors used in the code, we can see that we have 7 1's and 7 26's, and they appear in an
+   arbitrary order. Since 26's are our chance to zero out z, the idea here is to end each div-by-26 block with z
+   equals to zero.
+
+   I decided to try matching div-by-1 blocks with div-by-26 ones using a stack. My idea is to keep stacking
+   div-by-1 blocks until a div-by-26 is found, when then I pop a div-by-1 and try to match them.
+
+   The idea behind matching is that whatever I feed to div-by-1 must be compensated by div-by-26. I try all combinations
+   of digits, from 9 to 1 for the first part, and 1 to 9 for the second. I feed a digit to div-by-1, get its resulting
+   z and use it as input to div-by-26. As soon as the first combination returns z equals to 0 after the div-by-26
+   computation, I declare that pair a winning pair and save the digits as part of the result. I then continue
+   navigating the stack until all pairs are matched.
+
+   Further analysis is needed to fully understand why pairs cancel out like that, but this idea does produce the
+   answers the challenge expects.
  */
 
-function replace(line: string, regexp: RegExp, callback): string {
-    const m = line.match(regexp);
-    return m && callback(...m.slice(1))
+import * as assert from "assert";
+import {range} from "./utils";
+
+// manually written by analyzing the input code
+function compute(w: number, z: number, p1: number, p2: number, p3: number): number {
+    const x = ((((z % 26) + p1) === w ? 1 : 0) === 0 ? 1 : 0);
+    return (Math.trunc(z / p2) * (25 * x + 1)) + (w + p3) * x;
 }
 
-const time = () => Number(process.hrtime.bigint() / 1_000_000n);
+// manually extracted from the input code
+const params: [number, number, number][] = [
+    [15, 1, 15],
+    [12, 1, 5],
+    [13, 1, 6],
+    [-14, 26, 7],
+    [15, 1, 9],
+    [-7, 26, 6],
+    [14, 1, 14],
+    [15, 1, 3],
+    [15, 1, 1],
+    [-7, 26, 3],
+    [-8, 26, 4],
+    [-7, 26, 6],
+    [-5, 26, 7],
+    [-10, 26, 1],
+];
 
-class Stats {
-    public round = 0;
-    public total = 0;
-    private nextTimeShouldReport = time() + 1000;
-    private expected = 9 ** 14;
-    increment(): boolean {
-        this.round++;
-        this.total++;
-        const now = time();
-        if (now > this.nextTimeShouldReport) {
-            const prog = (100 * this.total / this.expected).toFixed(5);
-            const seconds = (this.expected - this.total) / this.round;
-            const hours = seconds / 3600;
-            const days = hours / 24;
-            console.info(`speed: ${(this.round/1_000_000).toFixed(3)}M/s, progress: ${prog}%, ` +
-            `ETA: ${days.toFixed(1)} days`);
-            this.round = 0;
-            this.nextTimeShouldReport = now + 1000;
-            return true;
+function *ascDigitPair(): Generator<[number, number]> {
+    for (const d1 of range(1, 10)) {
+        for (let d2 of range(1, 10)) {
+            yield [d1, d2];
         }
-        return false;
     }
 }
-
-class Solution {
-    public validateModel: (...number) => number;
-    private index = 1;
-    private readonly statements: string[] = [];
-    private readonly rules: [RegExp, (...string) => string][] = [
-        [/inp (.)/, a => `${a} = d${this.index++}`],
-        [/add (.) (\S+)/, (a, b) => `${a} += ${b}`],
-        [/mul (.) (\S+)/, (a, b) => `${a} *= ${b}`],
-        [/div (.) (\S+)/, (a, b) => `${a} = Math.trunc(${a} / ${b})`],
-        [/mod (.) (\S+)/, (a, b) => `${a} %= ${b}`],
-        [/eql (.) (\S+)/, (a, b) => `${a} = ${a} === ${b} ? 1 : 0`],
-    ];
-
-    parse(line: string) {
-        for (const [regexp, callback] of this.rules) {
-            let statement = replace(line, regexp, callback);
-            if (statement) {
-                this.statements.push(statement);
-                break;
-            }
-        }
-    }
-
-    compile() {
-        const params = Array.from(Array(14), (_, k) => `d${k+1}`).join(",")
-        const rules = this.statements.map(s => `${s}; `)
-        const script = [`(${params}) => {`,
-            // " console.info(d1, d14); process.exit(1); ",
-            " let w = 0, x = 0, y = 0, z = 0;",
-            ...rules,
-            // "return z === 0; }",
-            "return z; }",
-        ].join("");
-        this.validateModel = eval(script);
-        // console.info(script);
-    }
-
-    *generateModels(): Generator<number[]> {
-        const input = Array(14).fill(9);
-        while (input[0] > 0) {
-            for (let ptr = input.length - 1; ptr >= 0; ptr--) {
-                input[ptr]--;
-                if (input[ptr] === 0) {
-                    input[ptr] = 9;
-                } else {
-                    break;
-                }
-            }
-            yield input;
-        }
-    }
-
-    largestValidModel(): string {
-        const stats = new Stats();
-        for (const modelDigits of this.generateModels()) {
-            const result = this.validateModel(...modelDigits);
-            const model = modelDigits.join("");
-            if (stats.increment()) {
-                console.info(`Latest attempt: model=${model}, result=${result}`);
-            }
-            if (result === 0) {
-                return model;
-            }
+function *descDigitPair(): Generator<[number, number]> {
+    for (const d1 of range(9, 0)) {
+        for (const d2 of range(9, 0)) {
+            yield [d1, d2];
         }
     }
 }
 
-async function run(fileName: string) {
-    const solution = new Solution();
-    for await (const line of readLines(fileName)) {
-        solution.parse(line);
+function findPair(i: number, j: number, isMax: boolean): [number, number] {
+    const gen = isMax ? descDigitPair : ascDigitPair;
+    for (const [d1, d2] of gen()) {
+        const z0 = compute(d1, 0, ...params[i]);
+        const z1 = compute(d2, z0, ...params[j]);
+        if (z1 === 0) {
+            return [d1, d2];
+        }
     }
-    solution.compile();
-    console.info(`[${fileName}] largest valid model: ${solution.largestValidModel()}`);
 }
 
-await run("input/24.txt");
+function validate(...digits): boolean {
+    let z = 0;
+    for (let i = 0; i < params.length; i++) {
+        z = compute(digits[i], z, ...params[i]);
+    }
+    return z === 0;
+}
+
+function matchPairs(isMax: boolean): string {
+    const response = Array(14).fill(0);
+    const stack = [];
+    for (let i = 0; i < 14; i++) {
+        if (params[i][1] === 1) {
+            stack.push(i);
+        } else {
+            const j = stack.pop();
+            const [d1, d2] = findPair(j, i, isMax);
+            response[i] = d2;
+            response[j] = d1;
+        }
+    }
+    assert.ok(validate(...response));
+    return response.join("");
+}
+
+console.info("Max: " + matchPairs(true));
+console.info("Min: " + matchPairs(false));
