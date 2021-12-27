@@ -12,8 +12,9 @@ export default class Gif {
     private readonly canvas: Bitmap;
     private readonly ctx: CanvasRenderingContext2D;
     private readonly encoder: GIFEncoder;
+    public palette: number[] = [0x000000ff, 0x0000ffff];
 
-    constructor(private width: number, private height: number, private scale: number, name: string) {
+    constructor(private width: number, private height: number, private scale: number, name: string, delay = 100) {
         this.imageWidth = width * scale;
         this.imageHeight = height * scale;
 
@@ -21,7 +22,7 @@ export default class Gif {
         this.encoder.createReadStream().pipe(fs.createWriteStream(`output/${name}.gif`));
         this.encoder.start();
         this.encoder.setRepeat(0);
-        this.encoder.setDelay(100);
+        this.encoder.setDelay(delay);
         this.encoder.setQuality(10);
 
         this.canvas = PImage.make(this.imageWidth, this.imageHeight, undefined);
@@ -32,8 +33,8 @@ export default class Gif {
         this.ctx.fillStyle = "#000000";
         this.ctx.fillRect(0, 0, this.imageWidth, this.imageHeight);
 
-        for (let y = 0; y < this.width; y++) {
-            for (let x = 0; x < this.height; x++) {
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
                 const point = points[y * this.width + x];
                 const v = Math.floor(255 * point).toString(16).padStart(2, "0");
                 this.ctx.fillStyle = `#0000${v}`;
@@ -45,10 +46,10 @@ export default class Gif {
     }
 
     addFrameNoScale(points: number[]) {
-        for (let y = 0; y < this.width; y++) {
-            for (let x = 0; x < this.height; x++) {
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
                 const point = points[y * this.width + x];
-                this.canvas.setPixelRGBA(x, y, point > 0 ? 0x0000ffff : 0x000000ff);
+                this.canvas.setPixelRGBA(x, y, this.palette[point % this.palette.length]);
             }
         }
 

@@ -1,5 +1,6 @@
 
 import * as fs from "fs";
+import Gif from "./gif";
 
 const blankMap = (() => {
     let blankMapCache = new Map<number, string>();
@@ -14,9 +15,9 @@ const blankMap = (() => {
 })();
 
 class State {
-    private readonly map: string[][];
-    private readonly width: number;
-    private readonly height: number;
+    public readonly map: string[][];
+    public readonly width: number;
+    public readonly height: number;
     private input: string = undefined;
     private changed = false;
 
@@ -61,6 +62,14 @@ class State {
         }
     }
 
+    *chars(): Generator<string> {
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                yield this.map[y][x];
+            }
+        }
+    }
+
     set(x: number, y: number, value: string) {
         this.changed = this.map[y][x] !== value;
         this.map[y][x] = value;
@@ -85,7 +94,6 @@ class Solution {
     run() {
         for (let i = 0, state = this.initialState, previous = undefined; !state.equals(previous); i++) {
             this.states.push(state);
-            // console.info(state.toString() + "\n");
             previous = state;
             state = state.next();
         }
@@ -94,13 +102,29 @@ class Solution {
     stepsCount(): number {
         return this.states.length;
     }
+
+    saveToGif() {
+        const gif = new Gif(this.initialState.width, this.initialState.height, 1, "day25", 25);
+        gif.palette = ["#46005b", "#007700", "#1dcb1d"].map(s => parseInt(s.substring(1) + "ff", 16));
+        const xlat = { ".": 0, ">": 1, "v": 2 };
+        const points = state => [...state.chars()].map(c => xlat[c]);
+        for (const state of this.states) {
+            gif.addFrameNoScale(points(state));
+        }
+        const frame = points(this.states[this.states.length - 1]);
+        for (let i = 0; i < 15; i++) {
+            gif.addFrameNoScale(frame);
+        }
+        gif.finish();
+    }
 }
 
-async function run(fileName: string) {
+async function run(fileName: string, wantsGif: boolean) {
     const state = new State(fs.readFileSync(fileName, "utf-8").trimEnd());
     const solution = new Solution(state);
     console.info(`[${fileName}] Number of steps until all are stopped: ${solution.stepsCount()}`);
+    wantsGif && solution.saveToGif();
 }
 
-await run("input/25-example.txt");
-await run("input/25.txt");
+await run("input/25-example.txt", false);
+await run("input/25.txt", true);

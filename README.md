@@ -38,6 +38,10 @@ Day 11 octopus ballet:
 
 ![](output/day11.gif)
 
+Day 25 Christmas tree:
+
+![](output/day25.gif)
+
 Day 20 image enhancing:
 
 ![](output/day20.gif)
